@@ -94,20 +94,55 @@ return `<div class="cart-row">
 }).join(""):"Корзина пока пуста";
 document.getElementById("total").textContent="Итого: "+sum+" ₽";
 }
-function checkout(){
-const name=document.getElementById("name").value.trim();
-const phone=document.getElementById("phone").value.trim();
-const address=document.getElementById("address").value.trim();
-if(!Object.keys(cart).length){
-alert("Добавьте роллы в корзину");return;
+
+async function checkout(){
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const address = document.getElementById("address").value.trim();
+  const comment = document.getElementById("comment").value.trim();
+
+  if (!Object.keys(cart).length) {
+    alert("Добавьте роллы в корзину");
+    return;
+  }
+
+  if (!name || !phone || !address) {
+    alert("Заполните имя, телефон и адрес");
+    return;
+  }
+
+  const items = Object.entries(cart).map(([id, quantity]) => {
+    const p = products.find(x => x.id === Number(id));
+    return {name:p.name,price:p.price,quantity};
+  });
+
+  const total = items.reduce(
+    (sum,p) => sum + p.price * p.quantity, 0
+  );
+
+  const url = "https://script.google.com/macros/s/AKfycbxoKjJ91d-2yDc1Q4kNlwXeLMZS50pUj0PKqYt8NOrTpFbPgFxE6AKbf8UuObQaMkAikw/exec";
+
+  const button = document.querySelector(".checkout");
+  button.disabled = true;
+  button.textContent = "Отправляем заказ...";
+
+  try {
+    await fetch(url, {
+      method:"POST",
+      mode:"no-cors",
+      headers:{"Content-Type":"text/plain"},
+      body:JSON.stringify({name,phone,address,comment,items,total})
+    });
+
+    alert("Запрос отправлен. Подтверждение заказа ожидайте от MissMaki.");
+  } catch(error) {
+    alert("Не удалось отправить запрос. Попробуйте ещё раз.");
+  } finally {
+    button.disabled = false;
+    button.textContent = "Оформить заказ";
+  }
 }
-if(!name||!phone||!address){
-alert("Заполните имя, телефон и адрес");return;
-}
-document.getElementById("notice").textContent=
-"Корзина работает! Отправку заказов в Telegram подключим следующим шагом. Пока заказ НЕ отправлен.";
-alert("Это проверка корзины. Заказ пока не отправлен.");
-}
+
 render();
 </script>
 </body>
