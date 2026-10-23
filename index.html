@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -5,13 +6,109 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MissMaki — доставка роллов</title>
 <style>
-body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#222;text-align:center}
-header{background:#191919;color:white;padding:35px 15px}
-main{padding:25px 15px}
+*{box-sizing:border-box}
+body{margin:0;background:#faf8f5;color:#242424;font-family:Arial,sans-serif}
+header{background:#171717;color:white;text-align:center;padding:30px 15px}
+header h1{font-size:38px;margin:0;letter-spacing:2px}
+header p{color:#ddd}
+main{max-width:750px;margin:auto;padding:20px 15px 110px}
+h2{font-size:24px}
+.product{background:white;border-radius:16px;padding:18px;margin:15px 0;box-shadow:0 3px 15px #0000000d}
+.product h3{margin:0 0 8px}
+.product p{color:#777;font-size:14px}
+.price{font-weight:bold;font-size:20px}
+button{background:#171717;color:white;border:0;border-radius:10px;padding:12px 18px;font-size:15px;cursor:pointer}
+.product button{float:right}
+.product:after{content:"";display:block;clear:both}
+.cart{background:white;border-radius:16px;padding:20px;margin-top:25px}
+.cart-row{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:12px 0}
+.cart-row button{padding:6px 10px}
+input,textarea{width:100%;padding:13px;margin:7px 0;border:1px solid #ddd;border-radius:9px;font-size:16px}
+.checkout{width:100%;margin-top:10px}
+footer{text-align:center;color:#999;padding:25px;font-size:13px}
 </style>
 </head>
 <body>
-<header><h1>MissMaki</h1><p>Доставка роллов 🍣</p></header>
-<main><h2>Добро пожаловать!</h2><p>Скоро здесь появится меню с корзиной для заказов.</p></main>
+<header>
+<h1>MissMaki</h1>
+<p>Доставка роллов с любовью 🍣</p>
+</header>
+<main>
+<h2>Наше меню</h2>
+<p>Пробное меню — скоро здесь будут все наши роллы!</p>
+<div id="menu"></div>
+<section class="cart">
+<h2>🛒 Корзина</h2>
+<div id="cart"></div>
+<h3 id="total">Итого: 0 ₽</h3>
+<h2>Оформление заказа</h2>
+<input id="name" placeholder="Ваше имя">
+<input id="phone" type="tel" placeholder="Телефон">
+<input id="address" placeholder="Адрес доставки">
+<textarea id="comment" placeholder="Комментарий к заказу"></textarea>
+<button class="checkout" onclick="checkout()">Оформить заказ</button>
+<p id="notice" style="font-size:13px;color:#777"></p>
+</section>
+</main>
+<footer>© MissMaki</footer>
+<script>
+const products=[
+{id:1,name:"Филадельфия",price:500,desc:"Пробная цена"},
+{id:2,name:"Калифорния",price:450,desc:"Пробная цена"},
+{id:3,name:"Сет роллов",price:1500,desc:"Пробная цена"}
+];
+const cart={};
+function render(){
+document.getElementById("menu").innerHTML=products.map(p=>`
+<div class="product">
+<h3>${p.name}</h3>
+<p>${p.desc}</p>
+<span class="price">${p.price} ₽</span>
+<button onclick="add(${p.id})">В корзину +</button>
+</div>`).join("");
+renderCart();
+}
+function add(id){
+cart[id]=(cart[id]||0)+1;
+renderCart();
+}
+function change(id,n){
+cart[id]=(cart[id]||0)+n;
+if(cart[id]<=0)delete cart[id];
+renderCart();
+}
+function renderCart(){
+let sum=0;
+document.getElementById("cart").innerHTML=
+Object.keys(cart).length?
+Object.entries(cart).map(([id,qty])=>{
+const p=products.find(x=>x.id===Number(id));
+sum+=p.price*qty;
+return `<div class="cart-row">
+<span>${p.name} × ${qty}</span>
+<span>
+<button onclick="change(${id},-1)">−</button>
+<button onclick="change(${id},1)">+</button>
+</span>
+</div>`;
+}).join(""):"Корзина пока пуста";
+document.getElementById("total").textContent="Итого: "+sum+" ₽";
+}
+function checkout(){
+const name=document.getElementById("name").value.trim();
+const phone=document.getElementById("phone").value.trim();
+const address=document.getElementById("address").value.trim();
+if(!Object.keys(cart).length){
+alert("Добавьте роллы в корзину");return;
+}
+if(!name||!phone||!address){
+alert("Заполните имя, телефон и адрес");return;
+}
+document.getElementById("notice").textContent=
+"Корзина работает! Отправку заказов в Telegram подключим следующим шагом. Пока заказ НЕ отправлен.";
+alert("Это проверка корзины. Заказ пока не отправлен.");
+}
+render();
+</script>
 </body>
 </html>
