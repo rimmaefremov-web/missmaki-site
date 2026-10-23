@@ -1,149 +1,67 @@
-
 <!DOCTYPE html>
-<html lang="ru">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MissMaki — доставка роллов</title>
+<html lang="ru"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MissMaki — меню и доставка</title>
 <style>
-*{box-sizing:border-box}
-body{margin:0;background:#faf8f5;color:#242424;font-family:Arial,sans-serif}
-header{background:#171717;color:white;text-align:center;padding:30px 15px}
-header h1{font-size:38px;margin:0;letter-spacing:2px}
-header p{color:#ddd}
-main{max-width:750px;margin:auto;padding:20px 15px 110px}
-h2{font-size:24px}
-.product{background:white;border-radius:16px;padding:18px;margin:15px 0;box-shadow:0 3px 15px #0000000d}
-.product h3{margin:0 0 8px}
-.product p{color:#777;font-size:14px}
-.price{font-weight:bold;font-size:20px}
-button{background:#171717;color:white;border:0;border-radius:10px;padding:12px 18px;font-size:15px;cursor:pointer}
-.product button{float:right}
-.product:after{content:"";display:block;clear:both}
-.cart{background:white;border-radius:16px;padding:20px;margin-top:25px}
-.cart-row{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:12px 0}
-.cart-row button{padding:6px 10px}
-input,textarea{width:100%;padding:13px;margin:7px 0;border:1px solid #ddd;border-radius:9px;font-size:16px}
-.checkout{width:100%;margin-top:10px}
-footer{text-align:center;color:#999;padding:25px;font-size:13px}
-</style>
-</head>
-<body>
-<header>
-<h1>MissMaki</h1>
-<p>Доставка роллов с любовью 🍣</p>
-</header>
-<main>
-<h2>Наше меню</h2>
-<p>Пробное меню — скоро здесь будут все наши роллы!</p>
-<div id="menu"></div>
-<section class="cart">
-<h2>🛒 Корзина</h2>
-<div id="cart"></div>
-<h3 id="total">Итого: 0 ₽</h3>
-<h2>Оформление заказа</h2>
-<input id="name" placeholder="Ваше имя">
-<input id="phone" type="tel" placeholder="Телефон">
-<input id="address" placeholder="Адрес доставки">
-<textarea id="comment" placeholder="Комментарий к заказу"></textarea>
-<button class="checkout" onclick="checkout()">Оформить заказ</button>
-<p id="notice" style="font-size:13px;color:#777"></p>
-</section>
-</main>
-<footer>© MissMaki</footer>
+*{box-sizing:border-box}body{margin:0;background:#fff;color:#1b1b1b;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif}header{padding:22px 16px 17px;text-align:center;border-bottom:1px solid #eee}header h1{font-size:34px;letter-spacing:2px;margin:0}header p{margin:5px 0;color:#777;font-size:12px}main{max-width:650px;margin:auto;padding:10px 12px 110px}.tabs{display:flex;gap:8px;overflow:auto;position:sticky;top:0;background:white;padding:12px 0;z-index:3}.tabs a{flex-shrink:0;text-decoration:none;background:#f3f3f3;color:#222;border-radius:20px;padding:9px 13px;font-size:13px}h2{font-size:21px;margin:23px 0 12px}.product{border:1px solid #ededed;border-radius:16px;padding:12px;margin:10px 0;background:#fff}.top{display:flex;gap:12px;align-items:center}.photo{width:102px;height:96px;flex-shrink:0;border-radius:12px;background:linear-gradient(140deg,#fff4e8,#f7f7f7);display:flex;align-items:center;justify-content:center;font-size:48px;overflow:hidden}.photo img,.photo video{width:100%;height:100%;object-fit:cover}.info{flex:1;min-width:0}.info h3{font-size:17px;margin:0 0 3px}.count{font-size:11px;color:#777;font-weight:normal}.desc{font-size:11px;color:#777;line-height:1.35;margin:5px 0}.options{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:10px}.option{background:#fff;border:1px solid #e2e2e2;color:#222;border-radius:10px;padding:7px 2px;min-width:0;font-size:10px;text-align:center}.option.selected{border:2px solid #222;background:#fafafa;padding:6px 1px}.option .emoji{display:block;font-size:22px;margin-bottom:4px}.option b{display:block;margin-top:3px;font-size:12px}.bottom{display:flex;align-items:center;justify-content:space-between;margin-top:10px;gap:8px}.chosen{font-size:12px;color:#555}.add{background:#191919;color:white;border:0;border-radius:10px;padding:11px 13px;font-size:13px;font-weight:600}.add:disabled{opacity:.5}.simple .bottom{margin-top:8px}.simple .photo{width:90px;height:80px}.cart{margin-top:25px;background:#fafafa;border-radius:15px;padding:16px}.cart-row{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #e8e8e8;font-size:13px}.cart-row span:first-child{flex:1}.qty{display:flex;align-items:center;gap:7px}.qty button{border:1px solid #ddd;background:white;border-radius:8px;padding:5px 10px;font-size:16px}input,textarea{width:100%;padding:13px;margin:6px 0;border:1px solid #ddd;border-radius:9px;font-size:16px;font-family:inherit}.checkout{width:100%;background:#191919;color:white;border:0;border-radius:10px;padding:15px;font-size:16px}.checkout:disabled{opacity:.55}.notice{font-size:12px;color:#777;line-height:1.5}.foot{text-align:center;padding:20px;color:#888;font-size:12px}.sticky{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #eee;padding:10px 15px;text-align:center;z-index:4}.sticky a{display:block;max-width:650px;margin:auto;background:#171717;color:#fff;text-decoration:none;border-radius:10px;padding:12px;font-weight:600;font-size:14px}html{scroll-behavior:smooth}section{scroll-margin-top:65px}
+</style></head><body><header><h1>MissMaki</h1><p>Роллы, приготовленные с любовью 🍣</p></header><main><nav class="tabs"><a href="#rolls">Роллы</a><a href="#baked">Запечённые</a><a href="#sets">Сеты</a><a href="#sushi">Суши</a><a href="#extras">Дополнения</a><a href="#order">Корзина</a></nav><div id="catalog"></div><section id="order" class="cart"><h2>🛒 Корзина</h2><div id="cart"></div><h3 id="total">Итого: 0 ₽</h3><h2>Оформление заказа</h2><input id="name" placeholder="Ваше имя" autocomplete="name"><input id="phone" type="tel" placeholder="Телефон" autocomplete="tel"><input id="address" placeholder="Адрес доставки" autocomplete="street-address"><textarea id="comment" placeholder="Комментарий к заказу" rows="3"></textarea><button class="checkout" onclick="checkout()">Отправить заявку</button><p class="notice">Заказ считается принятым только после подтверждения MissMaki. Соевый соус, имбирь, васаби и палочки не входят в стоимость роллов и сетов.</p><p id="notice" class="notice" role="status"></p></section></main><div class="sticky"><a href="#order" id="cartBadge">🛒 Корзина · 0 ₽</a></div><footer class="foot">© MissMaki</footer>
 <script>
-const products=[
-{id:1,name:"Филадельфия",price:500,desc:"Пробная цена"},
-{id:2,name:"Калифорния",price:450,desc:"Пробная цена"},
-{id:3,name:"Сет роллов",price:1500,desc:"Пробная цена"}
+// Для анимации добавьте в папку media файл california.mp4 и укажите video:"media/california.mp4" у нужного товара.
+// Для фотографии добавьте image:"media/california.jpg". Пока используются временные символы вместо фотографий.
+const groups=[
+{id:'rolls',title:'Роллы',products:[
+{name:'Калифорния',count:8,desc:'Масаго, свежий огурец, японский майонез, рис, нори',opts:[['Снежный краб',320,'🦀'],['Креветки',420,'🦐'],['Лосось',420,'🐟'],['Угорь',450,'🍣']]},
+{name:'Хосомаки',count:8,desc:'Рис, нори',opts:[['Снежный краб',200,'🦀'],['Угорь',300,'🍣'],['Лосось',270,'🐟'],['Огурец',160,'🥒'],['Креветки',270,'🦐'],['Копчёная курица',250,'🍗']]},
+{name:'Канада',count:8,desc:'Жареный угорь, сливочный сыр, свежий огурец, унаги соус, кунжут, рис, нори',opts:[['Классическая',530,'🍣'],['Лосось',570,'🐟'],['Креветки',570,'🦐']]},
+{name:'Сакура',count:8,desc:'Сливочный сыр, свежий огурец, рис, нори',opts:[['Угорь',420,'🍣'],['Снежный краб',320,'🦀'],['Лосось',370,'🐟'],['Креветки',370,'🦐']]},
+{name:'Филадельфия',count:8,desc:'Сливочный сыр, свежий огурец, слабосолёный лосось, рис, нори',opts:[['Классическая',470,'🐟'],['Угорь',510,'🍣'],['Креветки',500,'🦐']]},
+{name:'Цезарь',count:8,desc:'Соус цезарь, сухари, сыр пармезан, томат, рис, нори',opts:[['Копчёная курица',390,'🍗'],['Лосось',430,'🐟'],['Креветки',430,'🦐']]},
+{name:'Дабл чизз',count:8,desc:'Слабосолёный лосось, свежий огурец, сливочный сыр, рис, нори',price:730},
+{name:'Тори маки',count:8,desc:'Сливочный сыр, копчёная курица, жареный угорь, огурец, унаги соус, кунжут, спайси соус, рис, нори',price:470},
+{name:'Рассвет',count:8,desc:'Жареный кунжут, сливочный сыр, огурец, рис, нори, снежный краб',price:380},
+{name:'Дуэт',count:8,desc:'Жареный угорь, сливочный сыр, лосось, унаги соус, кунжут, рис, нори',price:500},
+{name:'Премиум',count:8,desc:'Жареный угорь, креветки, лосось, авокадо, сливочный сыр, унаги соус, огурец, кунжут, рис, нори',price:900},
+{name:'Люкс ролл',count:8,desc:'Сливочный сыр, снежный краб, томат, огурец, унаги соус, чёрный кунжут, рис, нори',price:460}
+]},
+{id:'baked',title:'Запечённые роллы и горячее',products:[
+{name:'Запечённые роллы с масаго',count:8,desc:'Сливочный сыр, икра масаго, огурец, рис, нори',opts:[['Креветки',460,'🦐'],['Лосось',460,'🐟'],['Снежный краб',400,'🦀'],['Тунец',470,'🐟']]},
+{name:'Запечённые роллы с кунжутом',count:8,desc:'Сливочный сыр, жареный кунжут, огурец, рис, нори',opts:[['Копчёная курица',420,'🍗'],['Шиитаке',400,'🍄'],['Угорь',470,'🍣'],['Мидии',430,'🐚']]},
+{name:'Мини-хот',count:8,desc:'Рис, нори, соус',opts:[['Креветки',300,'🦐'],['Лосось',300,'🐟'],['Угорь',320,'🍣'],['Мидии',270,'🐚'],['Тунец',320,'🐟'],['Снежный краб',250,'🦀'],['Копчёная курица',280,'🍗']]},
+{name:'Суши-пицца',desc:'Начинка с томатом на рисовой подушке, в соусе, с пармезаном',opts:[['Лосось',550,'🐟'],['Угорь',560,'🍣'],['Тунец',560,'🐟'],['Курица',500,'🍗'],['Креветки',550,'🦐']]},
+{name:'Филадельфия хот',count:8,desc:'Сливочный сыр, лосось, спайси соус, жареный кунжут, унаги соус, рис, нори',price:500},
+{name:'Спайси ролл',count:8,desc:'Икра масаго, спайси соус, огурец, сыр, рис, нори',opts:[['Угорь',520,'🍣'],['Лосось',490,'🐟'],['Тунец',520,'🐟'],['Креветки',490,'🦐']]}
+]},
+{id:'sets',title:'Сеты',products:[
+{name:'Мини сет',count:18,desc:'Мини-хот с копчёной курицей, мини-хот с лососем, кани спайси 2 шт.',price:750},
+{name:'Сет Филадельфия',count:32,desc:'Филадельфия классическая, Сакура с лососем, Филадельфия хот, Дуэт',price:1650},
+{name:'Хот сет',count:32,desc:'Мини-хот с крабом, запечённый с лососем, запечённый с курицей, мини-хот с креветкой',price:1270},
+{name:'Сет Микс',count:40,desc:'Запечённый со снежным крабом, мини-хот с курицей, Филадельфия, Калифорния с крабом, Цезарь с копчёной курицей',price:1650},
+{name:'Мега сет',count:104,desc:'Большой набор роллов и хосомаки — состав указан в печатном меню',price:3900},
+{name:'Топ сет',count:24,desc:'Калифорния с лососем, Сакура с угрём, Рассвет',price:1090},
+{name:'Сет Бестселлер',count:48,desc:'Калифорния с крабом, Дуэт, Цезарь с лососем, Сакура с лососем, хосомаки с угрём и огурцом',price:1850},
+{name:'Сет Хит',count:56,desc:'Канада, Филадельфия, Калифорния с лососем, Тори маки, запечённые с креветками и курицей, Сакура с крабом',price:2750},
+{name:'Сет Унаги',count:32,desc:'Канада с лососем, хосомаки с угрём, мини-хот с угрём, спайси ролл с угрём',price:1620},
+{name:'Набор MissMaki',count:112,desc:'Большой фирменный набор — состав указан в печатном меню',price:5350},
+{name:'Суши сет',count:12,desc:'Суши с лососем и угрём, сяке спайси, эби спайси, унаги спайси, кани спайси — по 2 шт.',price:1550}
+]},
+{id:'sushi',title:'Суши и гунканы',products:[
+{name:'Спайси гунканы',opts:[['Сяке спайси · лосось',130,'🐟'],['Эби спайси · креветка',130,'🦐'],['Унаги спайси · угорь',130,'🍣'],['Кани спайси · краб',130,'🦀']]},
+{name:'Суши',opts:[['Лосось',130,'🐟'],['Угорь',130,'🍣'],['Масаго',130,'🟠'],['Креветка',130,'🦐']]},
+{name:'Запечённые мидии киви',count:1,desc:'В ракушках',opts:[['Сырный соус',150,'🐚'],['Спайси соус',150,'🌶️']]}
+]},
+{id:'extras',title:'Соусы и дополнения',products:[
+{name:'Соусы',count:'30 мл',opts:[['Спайси',50,'🌶️'],['Соевый',10,'🥢'],['Цезарь',50,'🥣'],['Унаги',50,'🍶']]},
+{name:'Палочки',count:'1 пара',price:10},
+{name:'Имбирь',count:'10 г',price:10},
+{name:'Васаби',count:'10 г',price:10}
+]}
 ];
-const cart={};
-function render(){
-document.getElementById("menu").innerHTML=products.map(p=>`
-<div class="product">
-<h3>${p.name}</h3>
-<p>${p.desc}</p>
-<span class="price">${p.price} ₽</span>
-<button onclick="add(${p.id})">В корзину +</button>
-</div>`).join("");
-renderCart();
-}
-function add(id){
-cart[id]=(cart[id]||0)+1;
-renderCart();
-}
-function change(id,n){
-cart[id]=(cart[id]||0)+n;
-if(cart[id]<=0)delete cart[id];
-renderCart();
-}
-function renderCart(){
-let sum=0;
-document.getElementById("cart").innerHTML=
-Object.keys(cart).length?
-Object.entries(cart).map(([id,qty])=>{
-const p=products.find(x=>x.id===Number(id));
-sum+=p.price*qty;
-return `<div class="cart-row">
-<span>${p.name} × ${qty}</span>
-<span>
-<button onclick="change(${id},-1)">−</button>
-<button onclick="change(${id},1)">+</button>
-</span>
-</div>`;
-}).join(""):"Корзина пока пуста";
-document.getElementById("total").textContent="Итого: "+sum+" ₽";
-}
-
-async function checkout(){
-  const name = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const address = document.getElementById("address").value.trim();
-  const comment = document.getElementById("comment").value.trim();
-
-  if (!Object.keys(cart).length) {
-    alert("Добавьте роллы в корзину");
-    return;
-  }
-
-  if (!name || !phone || !address) {
-    alert("Заполните имя, телефон и адрес");
-    return;
-  }
-
-  const items = Object.entries(cart).map(([id, quantity]) => {
-    const p = products.find(x => x.id === Number(id));
-    return {name:p.name,price:p.price,quantity};
-  });
-
-  const total = items.reduce(
-    (sum,p) => sum + p.price * p.quantity, 0
-  );
-
-  const url = "https://script.google.com/macros/s/AKfycbxoKjJ91d-2yDc1Q4kNlwXeLMZS50pUj0PKqYt8NOrTpFbPgFxE6AKbf8UuObQaMkAikw/exec";
-
-  const button = document.querySelector(".checkout");
-  button.disabled = true;
-  button.textContent = "Отправляем заказ...";
-
-  try {
-    await fetch(url, {
-      method:"POST",
-      mode:"no-cors",
-      headers:{"Content-Type":"text/plain"},
-      body:JSON.stringify({name,phone,address,comment,items,total})
-    });
-
-    alert("Запрос отправлен. Подтверждение заказа ожидайте от MissMaki.");
-  } catch(error) {
-    alert("Не удалось отправить запрос. Попробуйте ещё раз.");
-  } finally {
-    button.disabled = false;
-    button.textContent = "Оформить заказ";
-  }
-}
-
-render();
-</script>
-</body>
-</html>
+let nextId=1;const catalog=[];for(const g of groups)for(const p of g.products){p.id=nextId++;p.group=g.id;catalog.push(p)}
+const selected={},cart={};const fmt=n=>Number(n).toLocaleString('ru-RU');
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function renderMenu(){document.getElementById('catalog').innerHTML=groups.map(g=>`<section id="${g.id}"><h2>${esc(g.title)}</h2>${g.products.map(p=>{const opt=p.opts?.[selected[p.id]??0];const price=opt?opt[1]:p.price;const picture=p.video?`<video src="${esc(p.video)}" autoplay muted loop playsinline preload="metadata"></video>`:p.image?`<img src="${esc(p.image)}" alt="${esc(p.name)}" loading="lazy">`:'🍣';return `<article class="product ${p.opts?'':'simple'}"><div class="top"><div class="photo">${picture}</div><div class="info"><h3>${esc(p.name)} <span class="count">${p.count?'· '+esc(p.count)+' шт.':''}</span></h3><p class="desc">${esc(p.desc||'')}</p></div></div>${p.opts?`<div class="options">${p.opts.map((o,i)=>`<button class="option ${i===(selected[p.id]??0)?'selected':''}" onclick="selectOption(${p.id},${i})" aria-pressed="${i===(selected[p.id]??0)}"><span class="emoji">${o[2]}</span>${esc(o[0])}<b>${fmt(o[1])} ₽</b></button>`).join('')}</div>`:''}<div class="bottom"><span class="chosen">${opt?esc(opt[0]):''}</span><button class="add" onclick="add(${p.id})">В корзину · ${fmt(price)} ₽</button></div></article>`}).join('')}</section>`).join('')}
+function selectOption(id,i){selected[id]=i;renderMenu()}
+function add(id){const p=catalog.find(p=>p.id===id);const i=selected[id]??0;const o=p.opts?.[i];const key=id+':'+(o?i:'x');if(!cart[key])cart[key]={name:p.name+(o?' — '+o[0]:''),price:o?o[1]:p.price,quantity:0};cart[key].quantity++;renderCart()}
+function change(key,n){if(!cart[key])return;cart[key].quantity+=n;if(cart[key].quantity<=0)delete cart[key];renderCart()}
+function renderCart(){const entries=Object.entries(cart);const total=entries.reduce((s,[,v])=>s+v.price*v.quantity,0);document.getElementById('cart').innerHTML=entries.length?entries.map(([k,v])=>`<div class="cart-row"><span>${esc(v.name)}<br><small>${fmt(v.price)} ₽ × ${v.quantity}</small></span><div class="qty"><button onclick="change('${k}',-1)" aria-label="Уменьшить">−</button>${v.quantity}<button onclick="change('${k}',1)" aria-label="Увеличить">+</button></div></div>`).join(''):'Корзина пока пуста';document.getElementById('total').textContent='Итого: '+fmt(total)+' ₽';document.getElementById('cartBadge').textContent='🛒 Корзина · '+fmt(total)+' ₽'}
+async function checkout(){const name=document.getElementById('name').value.trim(),phone=document.getElementById('phone').value.trim(),address=document.getElementById('address').value.trim(),comment=document.getElementById('comment').value.trim(),items=Object.values(cart).map(v=>({...v}));if(!items.length)return alert('Добавьте товары в корзину');if(!name||!phone||!address)return alert('Заполните имя, телефон и адрес');const total=items.reduce((s,p)=>s+p.price*p.quantity,0);const url='https://script.google.com/macros/s/AKfycbxoKjJ91d-2yDc1Q4kNlwXeLMZS50pUj0PKqYt8NOrTpFbPgFxE6AKbf8UuObQaMkAikw/exec';const button=document.querySelector('.checkout');button.disabled=true;button.textContent='Отправляем...';try{await fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify({name,phone,address,comment,items,total})});document.getElementById('notice').textContent='Запрос отправлен, но получение заказа не подтверждено автоматически. Дождитесь подтверждения MissMaki.';alert('Запрос отправлен. Дождитесь подтверждения MissMaki.')}catch(e){alert('Не удалось отправить запрос. Попробуйте снова.')}finally{button.disabled=false;button.textContent='Отправить заявку'}}
+renderMenu();renderCart();
+</script></body></html>
