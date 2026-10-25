@@ -15,7 +15,141 @@ const approvedPhotos={"Филадельфия":"data:image/webp;base64,UklGRoS7A
 function render(){document.getElementById('menu').innerHTML=groups.map(g=>`<section id="${g[0]}"><h2>${g[1]}</h2><div class="grid">${products.filter(p=>p.group===g[0]).map(p=>{const choice=p.opts?.[selected[p.id]||0];const price=choice?choice[1]:p.price;return `<article class="item"><div class="producthead"><div class="picture">${approvedPhotos[p.name]?`<img src="${approvedPhotos[p.name]}" alt="${esc(p.name)}" loading="lazy">`:"🍣"}</div><div><h3>${esc(p.name)}</h3><p class="description">${esc(p.desc)}${['rolls','baked'].includes(p.group)?' · 8 шт.':''}</p></div></div>${p.opts?`<div class="choices">${p.opts.map((o,i)=>`<button class="${(selected[p.id]||0)===i?'active':''}" onclick="select(${p.id},${i})">${esc(o[0])} · ${fmt(o[1])} ₽</button>`).join('')}</div>`:''}<div class="bottom"><b>${fmt(price)} ₽</b><button class="add" onclick="add(${p.id})">В корзину</button></div></article>`}).join('')}</div></section>`).join('')}
 function select(id,i){selected[id]=i;render()}function add(id){const p=products.find(x=>x.id===id),i=selected[id]||0,o=p.opts?.[i],key=id+':'+(o?i:'x');if(!cart[key])cart[key]={sku:key,name:p.name+(o?' — '+o[0]:''),price:o?o[1]:p.price,quantity:0};cart[key].quantity++;renderCart()}function change(key,n){if(!cart[key])return;cart[key].quantity+=n;if(cart[key].quantity<1)delete cart[key];renderCart()}function totals(){const subtotal=Object.values(cart).reduce((s,x)=>s+x.price*x.quantity,0);const delivery=subtotal>=3000||!subtotal?0:200;return {subtotal,delivery,total:subtotal+delivery}}
 function renderCart(){const t=totals();document.getElementById('cart').innerHTML=Object.entries(cart).map(([k,v])=>`<div class="line"><span>${esc(v.name)}<small> · ${fmt(v.price)} ₽ × ${v.quantity}</small></span><span><button onclick="change('${k}',-1)">−</button> ${v.quantity} <button onclick="change('${k}',1)">+</button></span></div>`).join('')+`<div class="line">Доставка <b>${t.delivery?fmt(t.delivery)+' ₽':'Бесплатно'}</b></div>`;document.getElementById('total').textContent='Итого: '+fmt(t.total)+' ₽';document.getElementById('badge').textContent='Корзина · '+fmt(t.total)+' ₽'}
+// Server SKU values are stable and independent of the display order.
+const ORDER_SKUS={
+  "1:0": "5:0",
+  "1:1": "5:1",
+  "1:2": "5:2",
+  "2:0": "1:0",
+  "2:1": "1:1",
+  "2:2": "1:2",
+  "2:3": "1:3",
+  "3:0": "2:3",
+  "3:1": "2:0",
+  "3:2": "2:2",
+  "3:3": "2:1",
+  "3:4": "2:4",
+  "3:5": "2:5",
+  "4:0": "3:0",
+  "4:1": "3:1",
+  "4:2": "3:2",
+  "5:0": "4:1",
+  "5:1": "4:2",
+  "5:2": "4:3",
+  "5:3": "4:0",
+  "6:0": "6:0",
+  "6:1": "6:1",
+  "6:2": "6:2",
+  "7:x": "7:x",
+  "8:x": "8:x",
+  "9:x": "9:x",
+  "10:x": "10:x",
+  "11:x": "11:x",
+  "12:x": "12:x",
+  "13:0": "13:2",
+  "13:1": "13:1",
+  "13:2": "13:0",
+  "13:3": "13:3",
+  "14:0": "14:1",
+  "14:1": "14:0",
+  "14:2": "14:3",
+  "14:3": "14:2",
+  "15:0": "15:5",
+  "15:1": "15:3",
+  "15:2": "15:6",
+  "15:3": "15:1",
+  "15:4": "15:0",
+  "15:5": "15:2",
+  "15:6": "15:4",
+  "16:0": "16:3",
+  "16:1": "16:0",
+  "16:2": "16:4",
+  "16:3": "16:1",
+  "16:4": "16:2",
+  "17:x": "17:x",
+  "18:0": "18:1",
+  "18:1": "18:3",
+  "18:2": "18:0",
+  "18:3": "18:2",
+  "19:x": "19:x",
+  "20:x": "20:x",
+  "21:x": "21:x",
+  "22:x": "22:x",
+  "23:x": "23:x",
+  "24:x": "24:x",
+  "25:x": "25:x",
+  "26:x": "26:x",
+  "27:x": "27:x",
+  "28:x": "28:x",
+  "29:x": "29:x",
+  "30:0": "30:0",
+  "30:1": "30:1",
+  "30:2": "30:2",
+  "30:3": "30:3",
+  "31:0": "31:0",
+  "31:1": "31:1",
+  "31:2": "31:2",
+  "31:3": "31:3",
+  "32:0": "32:0",
+  "32:1": "32:1",
+  "33:0": "33:0",
+  "33:1": "33:1",
+  "33:2": "33:2",
+  "33:3": "33:3",
+  "34:x": "34:x",
+  "35:x": "35:x",
+  "36:x": "36:x"
+};
 const ENDPOINT='https://script.google.com/macros/s/AKfycbypTmSYACXKHqKUXoCpnpJZpkhgH5s1NMJM3vtpBqBorNM14k76A8UM3wa_Mmoi3_VC/exec';let busy=false,pending=null;
 function submit(order){return new Promise((resolve,reject)=>{const frame=document.createElement('iframe'),form=document.createElement('form'),field=document.createElement('input');frame.name='order_'+order.requestId.replace(/-/g,'');frame.hidden=true;form.method='POST';form.action=ENDPOINT;form.target=frame.name;form.hidden=true;field.type='hidden';field.name='payload';field.value=JSON.stringify(order);form.append(field);const cleanup=()=>{clearTimeout(timer);window.removeEventListener('message',receive);form.remove();frame.remove()};const receive=e=>{if(!/^https:\/\/(?:script\.google\.com|(?:[a-z0-9-]+[.-])?script\.googleusercontent\.com)$/.test(e.origin))return;const d=e.data;if(!d||d.type!=='missmaki-order-result'||d.requestId!==order.requestId)return;cleanup();resolve(d)};const timer=setTimeout(()=>{cleanup();reject(Error('Timeout'))},60000);window.addEventListener('message',receive);document.body.append(frame,form);form.submit()})}
-async function checkout(){if(busy)return;const name=document.getElementById('name').value.trim(),phone=document.getElementById('phone').value.trim(),area=document.getElementById('area').value,address=document.getElementById('address').value.trim(),comment=document.getElementById('comment').value.trim(),items=Object.values(cart).map(x=>({...x}));if(!items.length)return alert('Корзина пуста');if(!name||!phone||!area||!address)return alert('Укажите имя, телефон, район и адрес');if(name.length>100||phone.length>50||address.length>300||comment.length>500)return alert('Сократите данные заказа');const {subtotal,delivery,total}=totals(),content={name,phone,area,address,comment,items,subtotal,delivery,total},button=document.getElementById('send'),status=document.getElementById('status');busy=true;button.disabled=true;button.textContent='Отправляем...';status.textContent='';try{const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(content)));const fingerprint=Array.from(new Uint8Array(hash),v=>v.toString(16).padStart(2,'0')).join('');if(!pending){try{pending=JSON.parse(sessionStorage.getItem('missmaki-pending-order'))}catch(e){}}if(!pending||pending.fingerprint!==fingerprint||!/^[a-f0-9-]{36}$/.test(pending.requestId))pending={fingerprint,requestId:crypto.randomUUID()};try{sessionStorage.setItem('missmaki-pending-order',JSON.stringify(pending))}catch(e){}const result=await submit({...content,requestId:pending.requestId,origin:location.origin});if(result.ok!==true||result.telegramConfirmed!==true)throw Error('Not confirmed');for(const item of items){if(cart[item.sku]){cart[item.sku].quantity-=item.quantity;if(cart[item.sku].quantity<=0)delete cart[item.sku]}}pending=null;try{sessionStorage.removeItem('missmaki-pending-order')}catch(e){}renderCart();status.textContent='Заказ получен! Мы перезвоним в течение 10 минут.'}catch(e){status.textContent='Не удалось подтвердить заказ. Он мог быть отправлен — свяжитесь с MissMaki перед повторной отправкой.'}finally{busy=false;button.disabled=false;button.textContent='Отправить заказ'}}render();renderCart();
+async function checkout(){
+ if(busy)return;
+ if(navigator.locks){
+  return navigator.locks.request('missmaki-checkout',{ifAvailable:true},lock=>{
+   if(!lock){document.getElementById('status').textContent='Заказ уже отправляется в другой вкладке. Дождитесь результата.';return}
+   return checkoutOnce();
+  });
+ }
+ return checkoutOnce();
+}
+async function checkoutOnce(){
+ if(busy)return;
+ const name=document.getElementById('name').value.trim(),phone=document.getElementById('phone').value.trim(),area=document.getElementById('area').value,address=document.getElementById('address').value.trim(),comment=document.getElementById('comment').value.trim();
+ const snapshot=Object.values(cart).map(x=>({...x}));
+ if(!snapshot.length)return alert('Корзина пуста');
+ if(!name||!phone||!area||!address)return alert('Укажите имя, телефон, район и адрес');
+ if(name.length>100||phone.length>50||address.length>300||comment.length>500)return alert('Сократите данные заказа');
+ const {subtotal,delivery,total}=totals(),button=document.getElementById('send'),status=document.getElementById('status');
+ busy=true;button.disabled=true;button.textContent='Отправляем...';status.textContent='';
+ try{
+  const items=snapshot.map(item=>{
+   const sku=ORDER_SKUS[item.sku];if(!sku)throw Error('Unknown menu item');
+   return {...item,sku};
+  }).sort((a,b)=>a.sku.localeCompare(b.sku));
+  const content={name,phone,area,address,comment,items,subtotal,delivery,total};
+  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(content)));
+  const fingerprint=Array.from(new Uint8Array(hash),v=>v.toString(16).padStart(2,'0')).join('');
+  const recordKey='missmaki-order:'+fingerprint;
+  let shared;try{shared=JSON.parse(localStorage.getItem(recordKey))}catch(e){}
+  if(shared&&Date.now()-(shared.confirmedAt||shared.createdAt)<(shared.state==='sent'?10*60000:7*86400000)&&/^[a-f0-9-]{36}$/.test(shared.requestId))pending={fingerprint,requestId:shared.requestId};
+  if(!pending){try{pending=JSON.parse(sessionStorage.getItem('missmaki-pending-order'))}catch(e){}}
+  if(!pending||pending.fingerprint!==fingerprint||!/^[a-f0-9-]{36}$/.test(pending.requestId))pending={fingerprint,requestId:crypto.randomUUID()};
+  // Store only a digest and ID. Reuse the ID after a lost response; never auto-retry.
+  try{
+   const now=Date.now();for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key&&key.startsWith('missmaki-order:')){try{const entry=JSON.parse(localStorage.getItem(key));if(now-entry.createdAt>=7*86400000)localStorage.removeItem(key)}catch(e){localStorage.removeItem(key)}}}
+   localStorage.setItem(recordKey,JSON.stringify({requestId:pending.requestId,createdAt:shared?.createdAt||Date.now(),state:shared?.state||'pending',confirmedAt:shared?.confirmedAt}));
+  }catch(e){}
+  try{sessionStorage.setItem('missmaki-pending-order',JSON.stringify(pending))}catch(e){}
+  const result=await submit({...content,requestId:pending.requestId,origin:location.origin});
+  if(result.ok!==true||result.telegramConfirmed!==true)throw Error('Not confirmed');
+  try{localStorage.setItem(recordKey,JSON.stringify({requestId:pending.requestId,createdAt:shared?.createdAt||Date.now(),state:'sent',confirmedAt:Date.now()}))}catch(e){}
+  // Cart keys belong to the display, not the server. Preserve additions during the request.
+  for(const item of snapshot){if(cart[item.sku]){cart[item.sku].quantity-=item.quantity;if(cart[item.sku].quantity<=0)delete cart[item.sku]}}
+  pending=null;try{sessionStorage.removeItem('missmaki-pending-order')}catch(e){}
+  renderCart();status.textContent='Мы перезвоним вам в течение 10 минут';
+ }catch(e){
+  status.textContent='Не удалось подтвердить заказ. Он мог быть отправлен — свяжитесь с MissMaki перед повторной отправкой.';
+ }finally{busy=false;button.disabled=false;button.textContent='Отправить заказ'}
+}
+render();renderCart();
 </script></body></html>
