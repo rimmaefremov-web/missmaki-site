@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "syntaxValid": true,
+  "oneDoPostOneDoGet": true,
+  "noDuplicateFunctions": true,
+  "imagesUnchanged": 38,
+  "menuAndPricesUnchanged": true,
+  "skuMappingUnchanged": true,
+  "endpointUnchanged": true,
+  "availabilityCalculationUnchanged": true,
+  "accountHelpersUnchanged": true,
+  "uncheckedConsents": true,
+  "fourDraftDocuments": true
+}

@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "menuVariants": 82,
+  "allExternalCallsMocked": true,
+  "telegramConfirmedLive": false,
+  "checks": [
+    "unchanged catalogue and area aliases",
+    "200/3000/pickup totals",
+    "requestId + telegramConfirmed + iframe response",
+    "secure status token and JSONP",
+    "six ASAP buttons + two preorder buttons",
+    "preorder acceptance/rejection and slot reservation",
+    "terminal decision immutable and retry idempotent",
+    "wrong secret/chat/message/staff blocked",
+    "Telegram messages never create blank orders",
+    "uncertain delivery never resends",
+    "consent receipt version/time",
+    "old frontend compatibility",
+    "wrong project/bot/existing webhook stop",
+    "published webhook probe requires HtmlService marker; obsolete deployment blocked",
+    "production webhook helper simulated successfully without dropping updates or changing credentials"
+  ]
+}

@@ -1,0 +1,717 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MissMaki — полные файлы Apps Script</title><style>body{font:16px/1.5 -apple-system,Arial;margin:20px;max-width:800px}button{padding:14px;font:inherit}textarea{display:block;width:100%;height:180px;margin:14px 0;font:12px monospace}p{line-height:1.6}</style><body><h1>MissMaki — код для проверки</h1><p>Рабочий проект сейчас не менять. Эта страница ничего не отправляет и не подключает. Если iPhone открывает HTML только в предпросмотре и кнопки не работают, используйте полный TXT или попросите прислать файл целиком в чат. Не ищите и не правьте строки.</p><p id="result" role="status"></p><h2>Код.gs</h2><p>Полная замена только существующего одноимённого файла. Ничего не разворачивать без отдельного согласования.</p><button onclick="copyCode('code')">Скопировать Код.gs целиком</button><textarea id="code" readonly>// MissMaki: complete NEW project installer. Never paste into the working project.
+// Reads BOT_TOKEN and CHAT_ID from this new project settings; contains no secrets.
+
+// ===== apps-script/Catalog.gs =====
+// Generated from index.html by tools/sync-catalog.cjs.
+const MENU = {
+  &quot;1:0&quot;: {
+    &quot;name&quot;: &quot;Калифорния — Снежный краб&quot;,
+    &quot;price&quot;: 320
+  },
+  &quot;1:1&quot;: {
+    &quot;name&quot;: &quot;Калифорния — Креветки&quot;,
+    &quot;price&quot;: 420
+  },
+  &quot;1:2&quot;: {
+    &quot;name&quot;: &quot;Калифорния — Лосось&quot;,
+    &quot;price&quot;: 420
+  },
+  &quot;1:3&quot;: {
+    &quot;name&quot;: &quot;Калифорния — Угорь&quot;,
+    &quot;price&quot;: 450
+  },
+  &quot;2:0&quot;: {
+    &quot;name&quot;: &quot;Хосомаки — Снежный краб&quot;,
+    &quot;price&quot;: 200
+  },
+  &quot;2:1&quot;: {
+    &quot;name&quot;: &quot;Хосомаки — Угорь&quot;,
+    &quot;price&quot;: 300
+  },
+  &quot;2:2&quot;: {
+    &quot;name&quot;: &quot;Хосомаки — Лосось&quot;,
+    &quot;price&quot;: 270
+  },
+  &quot;2:3&quot;: {
+    &quot;name&quot;: &quot;Хосомаки — Огурец&quot;,
+    &quot;price&quot;: 160
+  },
+  &quot;2:4&quot;: {
+    &quot;name&quot;: &quot;Хосомаки — Креветки&quot;,
+    &quot;price&quot;: 270
+  },
+  &quot;2:5&quot;: {
+    &quot;name&quot;: &quot;Хосомаки — Копчёная курица&quot;,
+    &quot;price&quot;: 250
+  },
+  &quot;3:0&quot;: {
+    &quot;name&quot;: &quot;Канада — Классическая&quot;,
+    &quot;price&quot;: 530
+  },
+  &quot;3:1&quot;: {
+    &quot;name&quot;: &quot;Канада — Лосось&quot;,
+    &quot;price&quot;: 570
+  },
+  &quot;3:2&quot;: {
+    &quot;name&quot;: &quot;Канада — Креветки&quot;,
+    &quot;price&quot;: 570
+  },
+  &quot;4:0&quot;: {
+    &quot;name&quot;: &quot;Сакура — Угорь&quot;,
+    &quot;price&quot;: 420
+  },
+  &quot;4:1&quot;: {
+    &quot;name&quot;: &quot;Сакура — Снежный краб&quot;,
+    &quot;price&quot;: 320
+  },
+  &quot;4:2&quot;: {
+    &quot;name&quot;: &quot;Сакура — Лосось&quot;,
+    &quot;price&quot;: 370
+  },
+  &quot;4:3&quot;: {
+    &quot;name&quot;: &quot;Сакура — Креветки&quot;,
+    &quot;price&quot;: 370
+  },
+  &quot;5:0&quot;: {
+    &quot;name&quot;: &quot;Филадельфия — Классическая&quot;,
+    &quot;price&quot;: 470
+  },
+  &quot;5:1&quot;: {
+    &quot;name&quot;: &quot;Филадельфия — Угорь&quot;,
+    &quot;price&quot;: 510
+  },
+  &quot;5:2&quot;: {
+    &quot;name&quot;: &quot;Филадельфия — Креветки&quot;,
+    &quot;price&quot;: 500
+  },
+  &quot;6:0&quot;: {
+    &quot;name&quot;: &quot;Цезарь — Копчёная курица&quot;,
+    &quot;price&quot;: 390
+  },
+  &quot;6:1&quot;: {
+    &quot;name&quot;: &quot;Цезарь — Лосось&quot;,
+    &quot;price&quot;: 430
+  },
+  &quot;6:2&quot;: {
+    &quot;name&quot;: &quot;Цезарь — Креветки&quot;,
+    &quot;price&quot;: 430
+  },
+  &quot;7:x&quot;: {
+    &quot;name&quot;: &quot;Дабл чизз&quot;,
+    &quot;price&quot;: 730
+  },
+  &quot;8:x&quot;: {
+    &quot;name&quot;: &quot;Тори маки&quot;,
+    &quot;price&quot;: 470
+  },
+  &quot;9:x&quot;: {
+    &quot;name&quot;: &quot;Рассвет&quot;,
+    &quot;price&quot;: 380
+  },
+  &quot;10:x&quot;: {
+    &quot;name&quot;: &quot;Дуэт&quot;,
+    &quot;price&quot;: 500
+  },
+  &quot;11:x&quot;: {
+    &quot;name&quot;: &quot;Премиум&quot;,
+    &quot;price&quot;: 900
+  },
+  &quot;12:x&quot;: {
+    &quot;name&quot;: &quot;Люкс ролл&quot;,
+    &quot;price&quot;: 460
+  },
+  &quot;13:0&quot;: {
+    &quot;name&quot;: &quot;Запечённые роллы с масаго — Креветки&quot;,
+    &quot;price&quot;: 460
+  },
+  &quot;13:1&quot;: {
+    &quot;name&quot;: &quot;Запечённые роллы с масаго — Лосось&quot;,
+    &quot;price&quot;: 460
+  },
+  &quot;13:2&quot;: {
+    &quot;name&quot;: &quot;Запечённые роллы с масаго — Снежный краб&quot;,
+    &quot;price&quot;: 400
+  },
+  &quot;13:3&quot;: {
+    &quot;name&quot;: &quot;Запечённые роллы с масаго — Тунец&quot;,
+    &quot;price&quot;: 470
+  },
+  &quot;14:0&quot;: {
+    &quot;name&quot;: &quot;Запечённые роллы с кунжутом — Копчёная курица&quot;,
+    &quot;price&quot;: 420
+  },
+  &quot;14:1&quot;: {
+    &quot;name&quot;: &quot;Запечённые роллы с кунжутом — Шиитаке&quot;,
+    &quot;price&quot;: 400
+  },
+  &quot;14:2&quot;: {
+    &quot;name&quot;: &quot;Запечённые роллы с кунжутом — Угорь&quot;,
+    &quot;price&quot;: 470
+  },
+  &quot;14:3&quot;: {
+    &quot;name&quot;: &quot;Запечённые роллы с кунжутом — Мидии&quot;,
+    &quot;price&quot;: 430
+  },
+  &quot;15:0&quot;: {
+    &quot;name&quot;: &quot;Мини-хот — Креветки&quot;,
+    &quot;price&quot;: 300
+  },
+  &quot;15:1&quot;: {
+    &quot;name&quot;: &quot;Мини-хот — Лосось&quot;,
+    &quot;price&quot;: 300
+  },
+  &quot;15:2&quot;: {
+    &quot;name&quot;: &quot;Мини-хот — Угорь&quot;,
+    &quot;price&quot;: 320
+  },
+  &quot;15:3&quot;: {
+    &quot;name&quot;: &quot;Мини-хот — Мидии&quot;,
+    &quot;price&quot;: 270
+  },
+  &quot;15:4&quot;: {
+    &quot;name&quot;: &quot;Мини-хот — Тунец&quot;,
+    &quot;price&quot;: 320
+  },
+  &quot;15:5&quot;: {
+    &quot;name&quot;: &quot;Мини-хот — Снежный краб&quot;,
+    &quot;price&quot;: 250
+  },
+  &quot;15:6&quot;: {
+    &quot;name&quot;: &quot;Мини-хот — Копчёная курица&quot;,
+    &quot;price&quot;: 280
+  },
+  &quot;16:0&quot;: {
+    &quot;name&quot;: &quot;Суши-пицца — Лосось&quot;,
+    &quot;price&quot;: 550
+  },
+  &quot;16:1&quot;: {
+    &quot;name&quot;: &quot;Суши-пицца — Угорь&quot;,
+    &quot;price&quot;: 560
+  },
+  &quot;16:2&quot;: {
+    &quot;name&quot;: &quot;Суши-пицца — Тунец&quot;,
+    &quot;price&quot;: 560
+  },
+  &quot;16:3&quot;: {
+    &quot;name&quot;: &quot;Суши-пицца — Курица&quot;,
+    &quot;price&quot;: 500
+  },
+  &quot;16:4&quot;: {
+    &quot;name&quot;: &quot;Суши-пицца — Креветки&quot;,
+    &quot;price&quot;: 550
+  },
+  &quot;17:x&quot;: {
+    &quot;name&quot;: &quot;Филадельфия хот&quot;,
+    &quot;price&quot;: 500
+  },
+  &quot;18:0&quot;: {
+    &quot;name&quot;: &quot;Спайси ролл — Угорь&quot;,
+    &quot;price&quot;: 520
+  },
+  &quot;18:1&quot;: {
+    &quot;name&quot;: &quot;Спайси ролл — Лосось&quot;,
+    &quot;price&quot;: 490
+  },
+  &quot;18:2&quot;: {
+    &quot;name&quot;: &quot;Спайси ролл — Тунец&quot;,
+    &quot;price&quot;: 520
+  },
+  &quot;18:3&quot;: {
+    &quot;name&quot;: &quot;Спайси ролл — Креветки&quot;,
+    &quot;price&quot;: 490
+  },
+  &quot;19:x&quot;: {
+    &quot;name&quot;: &quot;Мини сет&quot;,
+    &quot;price&quot;: 750
+  },
+  &quot;20:x&quot;: {
+    &quot;name&quot;: &quot;Сет Филадельфия&quot;,
+    &quot;price&quot;: 1650
+  },
+  &quot;21:x&quot;: {
+    &quot;name&quot;: &quot;Хот сет&quot;,
+    &quot;price&quot;: 1270
+  },
+  &quot;22:x&quot;: {
+    &quot;name&quot;: &quot;Сет Микс&quot;,
+    &quot;price&quot;: 1650
+  },
+  &quot;23:x&quot;: {
+    &quot;name&quot;: &quot;Мега сет&quot;,
+    &quot;price&quot;: 3900
+  },
+  &quot;24:x&quot;: {
+    &quot;name&quot;: &quot;Топ сет&quot;,
+    &quot;price&quot;: 1090
+  },
+  &quot;25:x&quot;: {
+    &quot;name&quot;: &quot;Сет Бестселлер&quot;,
+    &quot;price&quot;: 1850
+  },
+  &quot;26:x&quot;: {
+    &quot;name&quot;: &quot;Сет Хит&quot;,
+    &quot;price&quot;: 2750
+  },
+  &quot;27:x&quot;: {
+    &quot;name&quot;: &quot;Сет Унаги&quot;,
+    &quot;price&quot;: 1620
+  },
+  &quot;28:x&quot;: {
+    &quot;name&quot;: &quot;Набор MissMaki&quot;,
+    &quot;price&quot;: 5350
+  },
+  &quot;29:x&quot;: {
+    &quot;name&quot;: &quot;Суши сет&quot;,
+    &quot;price&quot;: 1550
+  },
+  &quot;30:0&quot;: {
+    &quot;name&quot;: &quot;Спайси гунканы — Сяке спайси · лосось&quot;,
+    &quot;price&quot;: 130
+  },
+  &quot;30:1&quot;: {
+    &quot;name&quot;: &quot;Спайси гунканы — Эби спайси · креветка&quot;,
+    &quot;price&quot;: 130
+  },
+  &quot;30:2&quot;: {
+    &quot;name&quot;: &quot;Спайси гунканы — Унаги спайси · угорь&quot;,
+    &quot;price&quot;: 130
+  },
+  &quot;30:3&quot;: {
+    &quot;name&quot;: &quot;Спайси гунканы — Кани спайси · краб&quot;,
+    &quot;price&quot;: 130
+  },
+  &quot;31:0&quot;: {
+    &quot;name&quot;: &quot;Суши — Лосось&quot;,
+    &quot;price&quot;: 130
+  },
+  &quot;31:1&quot;: {
+    &quot;name&quot;: &quot;Суши — Угорь&quot;,
+    &quot;price&quot;: 130
+  },
+  &quot;31:2&quot;: {
+    &quot;name&quot;: &quot;Суши — Масаго&quot;,
+    &quot;price&quot;: 130
+  },
+  &quot;31:3&quot;: {
+    &quot;name&quot;: &quot;Суши — Креветка&quot;,
+    &quot;price&quot;: 130
+  },
+  &quot;32:0&quot;: {
+    &quot;name&quot;: &quot;Запечённые мидии киви — Сырный соус&quot;,
+    &quot;price&quot;: 150
+  },
+  &quot;32:1&quot;: {
+    &quot;name&quot;: &quot;Запечённые мидии киви — Спайси соус&quot;,
+    &quot;price&quot;: 150
+  },
+  &quot;33:0&quot;: {
+    &quot;name&quot;: &quot;Соусы — Спайси&quot;,
+    &quot;price&quot;: 50
+  },
+  &quot;33:1&quot;: {
+    &quot;name&quot;: &quot;Соусы — Соевый&quot;,
+    &quot;price&quot;: 10
+  },
+  &quot;33:2&quot;: {
+    &quot;name&quot;: &quot;Соусы — Цезарь&quot;,
+    &quot;price&quot;: 50
+  },
+  &quot;33:3&quot;: {
+    &quot;name&quot;: &quot;Соусы — Унаги&quot;,
+    &quot;price&quot;: 50
+  },
+  &quot;34:x&quot;: {
+    &quot;name&quot;: &quot;Палочки&quot;,
+    &quot;price&quot;: 10
+  },
+  &quot;35:x&quot;: {
+    &quot;name&quot;: &quot;Имбирь&quot;,
+    &quot;price&quot;: 10
+  },
+  &quot;36:x&quot;: {
+    &quot;name&quot;: &quot;Васаби&quot;,
+    &quot;price&quot;: 10
+  }
+};
+
+// ===== apps-script/Code.gs =====
+// Install together with Catalog.gs. Reuses existing BOT_TOKEN and CHAT_ID.
+// Preserve your existing testTelegram function; do not change Script Properties.
+const ALLOWED_ORIGINS = [&#x27;https://missmaki.ru&#x27;,&#x27;https://www.missmaki.ru&#x27;,&#x27;https://rimmaefremov-web.github.io&#x27;];
+const AREAS = [&quot;Южный&quot;,&quot;мкр. Олимпийский&quot;,&quot;СНТ Ивушка&quot;,&quot;СТ Механизатор&quot;,&quot;ДНП Виктория&quot;,&quot;СТ Орбита&quot;,&quot;СТ Аэропорт&quot;,&quot;СТ Родник&quot;,&quot;СТ «2 АО ЮГТЕКС»&quot;,&quot;СТ «Аэропорт»&quot;,&quot;ДНО «Виктория»&quot;,&quot;СТ «Делюшес»&quot;,&quot;СТ «Дружба»&quot;,&quot;СНТ «Зиповчанка»&quot;,&quot;СТ «Ивушка»&quot;,&quot;СТ «КСК-2»&quot;,&quot;СТ «Кубаночка»&quot;,&quot;СНТ «Кубаночка»&quot;,&quot;СТ «Механизатор»&quot;,&quot;СТ «Мечта»&quot;,&quot;МКР «Олимпийский»&quot;,&quot;СТ «Орбита»&quot;,&quot;СТ «Родник»&quot;,&quot;СТ «Строитель»&quot;,&quot;КП «Южная Столица»&quot;,&quot;Поселок «Южный»&quot;,&quot;СТ «Янтарь»&quot;];
+
+
+
+
+// Safe account-side diagnostics: performs no sendMessage and logs no credentials.
+function checkTelegramConfiguration() {
+  const props=PropertiesService.getScriptProperties();
+  const token=props.getProperty(&#x27;BOT_TOKEN&#x27;),chatId=props.getProperty(&#x27;CHAT_ID&#x27;);
+  if(!token||!chatId)throw Error(&#x27;Задайте BOT_TOKEN и CHAT_ID в свойствах скрипта&#x27;);
+  function check(method,payload){
+    try{
+      const response=UrlFetchApp.fetch(&#x27;https://api.telegram.org/bot&#x27;+token+&#x27;/&#x27;+method,{method:&#x27;post&#x27;,contentType:&#x27;application/json&#x27;,payload:JSON.stringify(payload),muteHttpExceptions:true});
+      const result=JSON.parse(response.getContentText());
+      return {ok:response.getResponseCode()===200&amp;&amp;result.ok===true,result:result.result};
+    }catch(error){return {ok:false}}
+  }
+  const bot=check(&#x27;getMe&#x27;,{}),chat=check(&#x27;getChat&#x27;,{chat_id:chatId});
+  if(!bot.ok)throw Error(&#x27;Telegram не подтвердил токен бота. Проверьте токен и доступ к Telegram API&#x27;);
+  if(!chat.ok)throw Error(&#x27;Telegram не подтвердил чат. Проверьте CHAT_ID, добавление бота и права доступа&#x27;);
+  console.log(&#x27;OK: токен бота и чат доступны. Сообщения не отправлялись. Право отправки проверяется отдельно тестовым заказом.&#x27;);
+  return {botAvailable:true,chatAvailable:true};
+}
+
+// Manual account-side test. Sends ONE clearly marked test order to the current chat.
+// This exercises the same doPost parser and order validation as the prepared site.
+
+
+// ===== apps-script/TestTelegram.gs =====
+// Compatible testTelegram implementation; the original function&#x27;s source was not provided.
+// If you copy your existing testTelegram into the NEW project, omit this file.
+// Keep exactly one function named testTelegram. Never edit the existing project.
+function testTelegram() {
+  const props=PropertiesService.getScriptProperties();
+  const token=props.getProperty(&#x27;BOT_TOKEN&#x27;);
+  const chatId=props.getProperty(&#x27;CHAT_ID&#x27;);
+  if(!token||!chatId)throw Error(&#x27;В новом проекте не заданы BOT_TOKEN и CHAT_ID&#x27;);
+  let confirmed=false;
+  try {
+    const response=UrlFetchApp.fetch(&#x27;https://api.telegram.org/bot&#x27;+token+&#x27;/sendMessage&#x27;,{
+      method:&#x27;post&#x27;,contentType:&#x27;application/json&#x27;,muteHttpExceptions:true,
+      payload:JSON.stringify({chat_id:chatId,text:&#x27;ТЕСТ MissMaki — проверка связи с Telegram. НЕ ГОТОВИТЬ.&#x27;})
+    });
+    const result=JSON.parse(response.getContentText());
+    confirmed=response.getResponseCode()===200&amp;&amp;result.ok===true&amp;&amp;result.result&amp;&amp;Number.isSafeInteger(result.result.message_id);
+  }catch(error){ /* Do not expose Telegram URLs or credentials. */ }
+  if(!confirmed)throw Error(&#x27;Telegram не подтвердил отправку тестового сообщения&#x27;);
+  console.log(&#x27;OK: тестовое сообщение отправлено в Telegram&#x27;);
+  return true;
+}
+
+// Safe setup check: no deployment, no Telegram messages, no property changes.
+function setupMissMaki() {
+  const props=PropertiesService.getScriptProperties();
+  const missing=[&#x27;BOT_TOKEN&#x27;,&#x27;CHAT_ID&#x27;].filter(key=&gt;!props.getProperty(key));
+  if(missing.length)throw Error(&#x27;В НОВОМ проекте откройте Настройки проекта → Свойства скрипта и добавьте: &#x27;+missing.join(&#x27;, &#x27;)+&#x27;. Код менять не нужно.&#x27;);
+  return checkTelegramConfiguration();
+}
+
+// Compatible order-path update for the existing project. Keep AvailabilityFix.gs.
+function doPost(e) {
+  let order, result = {ok:false,telegramConfirmed:false,code:&#x27;INVALID_REQUEST&#x27;};
+    if (e &amp;&amp; e.postData &amp;&amp; /^application\/json(?:;|$)/i.test(e.postData.type || &#x27;&#x27;)) {
+      const secret=PropertiesService.getScriptProperties().getProperty(&#x27;MM_CONFIRM_HOOK_KEY&#x27;);
+      if(!secret || !e.parameter || e.parameter.mmHook!==secret)return mmConfirmJson_({ok:false});
+      let update;try{update=JSON.parse(e.postData.contents)}catch(error){return mmConfirmJson_({ok:false})}
+      if(!update || !Number.isSafeInteger(update.update_id))return mmConfirmJson_({ok:false});
+      if(update.callback_query)mmConfirmCallback_(update.callback_query);
+      return mmConfirmJson_({ok:true});
+    }
+  try {
+    const payload = e &amp;&amp; e.parameter &amp;&amp; e.parameter.payload;
+    if (typeof payload !== &#x27;string&#x27;) throw mmOrderError_(&#x27;INVALID_REQUEST&#x27;);
+    order = JSON.parse(payload);
+    if (!order || !ALLOWED_ORIGINS.includes(order.origin) || !/^[a-f0-9-]{36}$/.test(order.requestId)) throw mmOrderError_(&#x27;INVALID_REQUEST&#x27;);
+    if (order.action) throw mmOrderError_(&#x27;UNSUPPORTED_ACTION&#x27;);
+    result = processOrder(order);
+    console.log(JSON.stringify({type:&#x27;order-receipt&#x27;,requestId:order.requestId,telegramConfirmed:result.telegramConfirmed===true,code:result.code||&#x27;OK&#x27;}));
+  } catch (error) {
+    result = {ok:false,telegramConfirmed:false,code:error &amp;&amp; error.mmCode || &#x27;SERVICE_UNAVAILABLE&#x27;};
+    console.log(&#x27;MissMaki order rejected: &#x27; + result.code);
+  }
+  return reply(order, result);
+}
+function reply(order, result) {
+  const origin = order &amp;&amp; ALLOWED_ORIGINS.includes(order.origin) ? order.origin : &#x27;https://missmaki.ru&#x27;;
+  const message = JSON.stringify({type:&#x27;missmaki-order-result&#x27;,requestId:order &amp;&amp; order.requestId || &#x27;&#x27;,ok:result.ok===true,telegramConfirmed:result.telegramConfirmed===true,code:result.code || &#x27;&#x27;,messageId:result.messageId || null,statusToken:result.statusToken || null}).replace(/&lt;/g,&#x27;\\u003c&#x27;);
+  return HtmlService.createHtmlOutput(&#x27;&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;script&gt;window.top.postMessage(&#x27;+message+&#x27;,&#x27;+JSON.stringify(origin)+&#x27;);&lt;/script&gt;&#x27;).setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+function mmOrderError_(code) { const error = new Error(code); error.mmCode = code; return error; }
+function processOrder(order) {
+  for (const [key,max] of [[&#x27;name&#x27;,100],[&#x27;phone&#x27;,50],[&#x27;address&#x27;,300],[&#x27;comment&#x27;,1000]]) {
+    if(typeof order[key]!==&#x27;string&#x27;||order[key].length&gt;max||(key!==&#x27;comment&#x27;&amp;&amp;!order[key].trim()))throw mmOrderError_(&#x27;INVALID_FIELD&#x27;);
+  }
+  if(order.consent!==undefined &amp;&amp; (!order.consent || order.consent.accepted!==true || order.consent.version!==&#x27;2026-10-28.1&#x27;))throw mmOrderError_(&#x27;CONSENT_REQUIRED&#x27;);
+  const fulfillment = order.fulfillment === undefined ? &#x27;delivery&#x27; : order.fulfillment;
+  if(![&#x27;pickup&#x27;,&#x27;delivery&#x27;].includes(fulfillment))throw mmOrderError_(&#x27;INVALID_FULFILLMENT&#x27;);
+  if(fulfillment===&#x27;delivery&#x27;&amp;&amp;!AREAS.includes(order.area))throw mmOrderError_(&#x27;INVALID_AREA&#x27;);
+  if(fulfillment===&#x27;pickup&#x27;&amp;&amp;order.area!==&#x27;Самовывоз&#x27;)throw mmOrderError_(&#x27;INVALID_AREA&#x27;);
+  if(!Array.isArray(order.items)||!order.items.length||order.items.length&gt;100)throw mmOrderError_(&#x27;INVALID_ITEMS&#x27;);
+  const timing=order.timing===undefined?&#x27;asap&#x27;:order.timing;
+  if(![&#x27;asap&#x27;,&#x27;preorder&#x27;].includes(timing))throw mmOrderError_(&#x27;INVALID_TIMING&#x27;);
+  if(timing===&#x27;preorder&#x27;&amp;&amp;(typeof order.requestedDate!==&#x27;string&#x27;||typeof order.requestedTime!==&#x27;string&#x27;))throw mmOrderError_(&#x27;INVALID_SLOT&#x27;);
+  let subtotal=0;const lines=[],seen={};
+  for(const item of order.items){
+    if(!item||!Object.prototype.hasOwnProperty.call(MENU,item.sku)||seen[item.sku]||!Number.isSafeInteger(item.quantity)||item.quantity&lt;1||item.quantity&gt;100)throw mmOrderError_(&#x27;INVALID_ITEM&#x27;);
+    seen[item.sku]=true;const product=MENU[item.sku];
+    if(item.price!==product.price)throw mmOrderError_(&#x27;MENU_CHANGED&#x27;);
+    subtotal+=product.price*item.quantity;
+    lines.push(product.name+&#x27; × &#x27;+item.quantity+&#x27; — &#x27;+product.price*item.quantity+&#x27; ₽&#x27;);
+  }
+  const delivery=fulfillment===&#x27;pickup&#x27;||subtotal&gt;=3000?0:200;
+  if(order.subtotal!==subtotal||order.delivery!==delivery||order.total!==subtotal+delivery)throw mmOrderError_(&#x27;TOTAL_MISMATCH&#x27;);
+  const when=timing===&#x27;preorder&#x27;?&#x27;Предзаказ: &#x27;+order.requestedDate+&#x27; &#x27;+order.requestedTime+&#x27; (Москва)&#x27;:&#x27;Как можно скорее&#x27;;
+  const text=[&#x27;Новый заказ MissMaki&#x27;,&#x27;Номер: &#x27;+order.requestId,&#x27;Имя: &#x27;+order.name,&#x27;Телефон: &#x27;+order.phone,&#x27;Получение: &#x27;+(fulfillment===&#x27;pickup&#x27;?&#x27;Самовывоз&#x27;:&#x27;Доставка&#x27;),when,&#x27;Адрес: &#x27;+order.area+&#x27;, &#x27;+order.address,&#x27;&#x27;,...lines,&#x27;&#x27;,&#x27;Стоимость блюд: &#x27;+subtotal+&#x27; ₽&#x27;,&#x27;Доставка: &#x27;+delivery+&#x27; ₽&#x27;,&#x27;Итого: &#x27;+(subtotal+delivery)+&#x27; ₽&#x27;,&#x27;Комментарий: &#x27;+(order.comment||&#x27;—&#x27;)].join(&#x27;\n&#x27;);
+  if(text.length&gt;4000)throw mmOrderError_(&#x27;MESSAGE_TOO_LONG&#x27;);
+  const props=PropertiesService.getScriptProperties();
+  const token=props.getProperty(&#x27;BOT_TOKEN&#x27;),chatId=props.getProperty(&#x27;CHAT_ID&#x27;);
+  if(!token||!chatId)throw mmOrderError_(&#x27;MISSING_CONFIGURATION&#x27;);
+  const digest=value=&gt;Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,JSON.stringify(value)));
+  const legacyFingerprint=digest([order.name,order.phone,order.address,order.area,order.comment,order.items.map(i=&gt;[i.sku,i.quantity]),subtotal]);
+  const fingerprint=digest([legacyFingerprint,fulfillment,timing,timing===&#x27;preorder&#x27;?order.requestedDate:&#x27;&#x27;,timing===&#x27;preorder&#x27;?order.requestedTime:&#x27;&#x27;]);
+  const lock=LockService.getScriptLock();lock.waitLock(30000);
+  try {
+    const key=&#x27;order:&#x27;+order.requestId,indexKey=&#x27;ORDER_&#x27;+order.requestId,existing=props.getProperty(key);
+    if(existing){
+      const saved=JSON.parse(existing);
+      const same=saved.fingerprintVersion===2?saved.fingerprint===fingerprint:saved.fingerprint===legacyFingerprint&amp;&amp;fulfillment===&#x27;delivery&#x27;&amp;&amp;timing===&#x27;asap&#x27;;
+      if(!same)return {ok:false,telegramConfirmed:false,code:&#x27;REQUEST_ID_CONFLICT&#x27;};
+      const confirmed=saved.status===&#x27;sent&#x27;;
+      return {ok:confirmed,telegramConfirmed:confirmed,code:confirmed?&#x27;&#x27;:&#x27;SEND_UNCONFIRMED&#x27;,messageId:saved.messageId||null,statusToken:saved.statusToken||null};
+    }
+    if(props.getProperty(indexKey))return {ok:false,telegramConfirmed:false,code:&#x27;EXISTING_ORDER_NEEDS_CHECK&#x27;};
+    if(timing===&#x27;preorder&#x27;){
+      if(typeof mmAvailability_!==&#x27;function&#x27;)throw mmOrderError_(&#x27;AVAILABILITY_NOT_CONFIGURED&#x27;);
+      const slot=mmAvailability_(order.requestedDate,order.requestedTime);
+      if(!slot||slot.ok!==true)throw mmOrderError_(&#x27;INVALID_SLOT&#x27;);
+      if(slot.available!==true)throw mmOrderError_(&#x27;SLOT_TAKEN&#x27;);
+    }
+    const now=Date.now(),records=props.getProperties();let count=0;
+    // Keep unresolved receipts; retain the seven-day policy for confirmed ones.
+    for(const k of Object.keys(records)){if(k.indexOf(&#x27;order:&#x27;)!==0)continue;let record;try{record=JSON.parse(records[k])}catch(error){throw mmOrderError_(&#x27;ORDER_STORAGE_ERROR&#x27;)}if(record.status===&#x27;sent&#x27;&amp;&amp;now-record.time&gt;7*86400000)props.deleteProperty(k);else count++}
+    for(const k of Object.keys(records)){
+      if(k.indexOf(&#x27;ORDER_&#x27;)!==0)continue;let item;try{item=JSON.parse(records[k])}catch(error){continue}
+      if(item&amp;&amp;item.schema===&#x27;missmaki-checkout-v2&#x27;&amp;&amp;item.telegramConfirmed===true&amp;&amp;now-item.createdAt&gt;7*86400000&amp;&amp;(item.timing===&#x27;asap&#x27;||item.requestedDate&lt;Utilities.formatDate(new Date(),&#x27;Europe/Moscow&#x27;,&#x27;yyyy-MM-dd&#x27;)))props.deleteProperty(k);
+    }
+    if(count&gt;=1000)throw mmOrderError_(&#x27;STORAGE_CAPACITY&#x27;);
+    const statusToken=Utilities.getUuid().replace(/-/g,&#x27;&#x27;)+Utilities.getUuid().replace(/-/g,&#x27;&#x27;);
+    const record={statusToken:statusToken,time:now,fingerprint:fingerprint,fingerprintVersion:2,status:&#x27;pending&#x27;};
+    const index={statusToken:statusToken,consent:order.consent?{accepted:true,version:order.consent.version,receivedAt:now}:null,schema:&#x27;missmaki-checkout-v2&#x27;,timing:timing,requestedDate:timing===&#x27;preorder&#x27;?order.requestedDate:null,requestedTime:timing===&#x27;preorder&#x27;?order.requestedTime:null,fulfillment:fulfillment,status:&#x27;pending&#x27;,createdAt:now,telegramConfirmed:false};
+    props.setProperty(key,JSON.stringify(record));
+    props.setProperty(indexKey,JSON.stringify(index));
+    let response,data;
+    try{
+      response=UrlFetchApp.fetch(&#x27;https://api.telegram.org/bot&#x27;+token+&#x27;/sendMessage&#x27;,{method:&#x27;post&#x27;,contentType:&#x27;application/json&#x27;,muteHttpExceptions:true,payload:JSON.stringify({chat_id:chatId,text:text,reply_markup:mmConfirmKeyboard_(order.requestId,timing)})});
+      data=JSON.parse(response.getContentText());
+    }catch(error){return {ok:false,telegramConfirmed:false,code:&#x27;SEND_UNCONFIRMED&#x27;}}
+    const confirmed=response.getResponseCode()===200&amp;&amp;data.ok===true&amp;&amp;data.result&amp;&amp;Number.isSafeInteger(data.result.message_id)&amp;&amp;data.result.message_id&gt;0;
+    if(confirmed){record.status=&#x27;sent&#x27;;record.messageId=data.result.message_id;props.setProperty(key,JSON.stringify(record));index.telegramConfirmed=true;index.messageId=data.result.message_id;props.setProperty(indexKey,JSON.stringify(index))}
+    return {ok:Boolean(confirmed),telegramConfirmed:Boolean(confirmed),code:confirmed?&#x27;&#x27;:&#x27;SEND_UNCONFIRMED&#x27;,messageId:confirmed?data.result.message_id:null,statusToken:confirmed?statusToken:null};
+  } finally {lock.releaseLock()}
+}
+
+// Manual owner-only test: one stable request ID, exact live-site fields, no payment.
+// Uses the PUBLISHED /exec, not an in-editor substitute for the deployed handler.
+function testOrderThroughDoPost() {
+  const endpoint=&#x27;https://script.google.com/macros/s/AKfycbypTmSYACXKHqKUXoCpnpJZpkhgH5s1NMJM3vtpBqBorNM14k76A8UM3wa_Mmoi3_VC/exec&#x27;;
+  if(ScriptApp.getService().getUrl()!==endpoint)throw Error(&#x27;Откройте проект, которому принадлежит рабочее развёртывание missmaki.ru. Ничего не отправлено.&#x27;);
+  const props=PropertiesService.getScriptProperties(),token=props.getProperty(&#x27;BOT_TOKEN&#x27;);
+  if(!token||!props.getProperty(&#x27;CHAT_ID&#x27;))throw Error(&#x27;Не настроены существующие BOT_TOKEN / CHAT_ID.&#x27;);
+  let bot;
+  try{const r=UrlFetchApp.fetch(&#x27;https://api.telegram.org/bot&#x27;+token+&#x27;/getMe&#x27;,{muteHttpExceptions:true});const data=JSON.parse(r.getContentText());if(r.getResponseCode()===200&amp;&amp;data.ok===true)bot=data.result}catch(error){}
+  if(!bot||String(bot.username||&#x27;&#x27;).toLowerCase()!==&#x27;missmakibot&#x27;)throw Error(&#x27;Настроен другой бот или нет доступа к Telegram. Тест не отправлен. Токен не меняйте.&#x27;);
+  let order;const initLock=LockService.getScriptLock();initLock.waitLock(30000);
+  try{
+  try{order=JSON.parse(props.getProperty(&#x27;MM_WEBSITE_ORDER_TEST_V2&#x27;)||&#x27;null&#x27;)}catch(error){}
+  if(!order){
+    order={requestId:Utilities.getUuid(),origin:&#x27;https://missmaki.ru&#x27;,name:&#x27;ТЕСТ — НЕ ГОТОВИТЬ&#x27;,phone:&#x27;ТЕСТ — НЕ ЗВОНИТЬ&#x27;,area:&#x27;СТ «2 АО ЮГТЕКС»&#x27;,address:&#x27;ТЕСТ — НЕ ДОСТАВЛЯТЬ&#x27;,comment:&#x27;Проверка сайта, не настоящий заказ покупателя. НЕ ГОТОВИТЬ, НЕ ДОСТАВЛЯТЬ.&#x27;,fulfillment:&#x27;delivery&#x27;,timing:&#x27;asap&#x27;,requestedDate:&#x27;&#x27;,requestedTime:&#x27;&#x27;,items:[{sku:&#x27;1:0&#x27;,name:&#x27;Калифорния — Краб&#x27;,price:320,quantity:1}],subtotal:320,delivery:200,total:520};
+    props.setProperty(&#x27;MM_WEBSITE_ORDER_TEST_V2&#x27;,JSON.stringify(order));
+  }
+  }finally{initLock.releaseLock()}
+  const key=&#x27;order:&#x27;+order.requestId;
+  let receipt;try{receipt=JSON.parse(props.getProperty(key)||&#x27;null&#x27;)}catch(error){}
+  let httpStatus=null;
+  if(!receipt){
+    try{const response=UrlFetchApp.fetch(endpoint,{method:&#x27;post&#x27;,payload:{payload:JSON.stringify(order)},followRedirects:true,muteHttpExceptions:true});httpStatus=response.getResponseCode()}catch(error){}
+    try{receipt=JSON.parse(props.getProperty(key)||&#x27;null&#x27;)}catch(error){}
+  }
+  const confirmed=!!(receipt&amp;&amp;receipt.fingerprintVersion===2&amp;&amp;receipt.status===&#x27;sent&#x27;&amp;&amp;Number.isSafeInteger(receipt.messageId)&amp;&amp;receipt.messageId&gt;0);
+  const result={requestId:order.requestId,telegramConfirmed:confirmed,messageId:confirmed?receipt.messageId:null,httpStatus:httpStatus};
+  console.log(JSON.stringify(result));
+  if(!confirmed)console.log(&#x27;Тест не подтверждён. Не создавайте новый номер автоматически; проверьте опубликованную версию и журналы.&#x27;);
+  else console.log(&#x27;Telegram подтвердил тест с этим номером. Повторный запуск не создаёт новый заказ. Найдите номер в группе.&#x27;);
+  return result;
+}
+
+// Confirmation v1. No trigger, token change or automatic webhook installation.
+// Telegram does not need JSON. HtmlService avoids ContentService&#x27;s temporary redirect.
+function mmConfirmJson_(value){return HtmlService.createHtmlOutput(&#x27;&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;pre id=&quot;mm-hook-result&quot; data-mm-hook-ok=&quot;&#x27;+(value.ok===true?&#x27;true&#x27;:&#x27;false&#x27;)+&#x27;&quot;&gt;&#x27;+JSON.stringify({ok:value.ok===true})+&#x27;&lt;/pre&gt;&#x27;)}
+function mmConfirmKeyboard_(id,timing){
+  const button=(text,action)=&gt;({text:text,callback_data:&#x27;mc:&#x27;+action+&#x27;:&#x27;+id});
+  return {inline_keyboard:timing===&#x27;preorder&#x27;?[[button(&#x27;✅ Принять&#x27;,&#x27;pre&#x27;),button(&#x27;❌ Отклонить&#x27;,&#x27;no&#x27;)]]:[[button(&#x27;30 мин&#x27;,&#x27;30&#x27;),button(&#x27;60 мин&#x27;,&#x27;60&#x27;),button(&#x27;90 мин&#x27;,&#x27;90&#x27;)],[button(&#x27;120 мин&#x27;,&#x27;120&#x27;),button(&#x27;180 мин&#x27;,&#x27;180&#x27;)],[button(&#x27;❌ Отклонить&#x27;,&#x27;no&#x27;)]]};
+}
+function mmConfirmTelegram_(method,payload){
+  const token=PropertiesService.getScriptProperties().getProperty(&#x27;BOT_TOKEN&#x27;);
+  if(!token)throw Error(&#x27;Telegram not configured&#x27;);
+  try{
+    const response=UrlFetchApp.fetch(&#x27;https://api.telegram.org/bot&#x27;+token+&#x27;/&#x27;+method,{method:&#x27;post&#x27;,contentType:&#x27;application/json&#x27;,payload:JSON.stringify(payload),muteHttpExceptions:true});
+    const data=JSON.parse(response.getContentText());
+    if(response.getResponseCode()!==200||data.ok!==true)throw Error(&#x27;Telegram rejected operation&#x27;);
+    return data.result;
+  }catch(error){throw Error(&#x27;Telegram operation not confirmed&#x27;)}
+}
+function mmConfirmCallback_(callback){
+  const props=PropertiesService.getScriptProperties(),chatId=props.getProperty(&#x27;CHAT_ID&#x27;);
+  const message=callback &amp;&amp; callback.message;
+  if(!message || String(message.chat.id)!==String(chatId) || !callback.from || callback.from.is_bot || !callback.id)return;
+  const match=/^mc:(pre|30|60|90|120|180|no):([a-f0-9-]{36})$/.exec(String(callback.data||&#x27;&#x27;));
+  if(!match)return;
+  const member=mmConfirmTelegram_(&#x27;getChatMember&#x27;,{chat_id:chatId,user_id:callback.from.id});
+  if(!member || ![&#x27;creator&#x27;,&#x27;administrator&#x27;].includes(member.status)){
+    try{mmConfirmTelegram_(&#x27;answerCallbackQuery&#x27;,{callback_query_id:callback.id,text:&#x27;Решение доступно администраторам группы&#x27;})}catch(error){}
+    return;
+  }
+  const action=match[1],id=match[2],key=&#x27;ORDER_&#x27;+id;
+  let answer=&#x27;Заказ не найден&#x27;,remove=false;
+  const lock=LockService.getScriptLock();lock.waitLock(30000);
+  try{
+    const raw=props.getProperty(key),order=raw?JSON.parse(raw):null;
+    if(!order || order.telegramConfirmed!==true || order.messageId!==message.message_id)return;
+    if([&#x27;accepted&#x27;,&#x27;rejected&#x27;].includes(order.status)){answer=&#x27;Решение уже сохранено&#x27;;remove=true}
+    else if(order.status===&#x27;pending&#x27;){
+      if(action!==&#x27;no&#x27; &amp;&amp; ((order.timing===&#x27;preorder&#x27;&amp;&amp;action!==&#x27;pre&#x27;) || (order.timing!==&#x27;preorder&#x27;&amp;&amp;action===&#x27;pre&#x27;)))return;
+      order.status=action===&#x27;no&#x27;?&#x27;rejected&#x27;:&#x27;accepted&#x27;;
+      order.minutes=action===&#x27;pre&#x27;||action===&#x27;no&#x27;?null:Number(action);
+      order.decidedAt=Date.now();order.decidedBy=String(callback.from.id);
+      props.setProperty(key,JSON.stringify(order));
+      answer=order.status===&#x27;accepted&#x27;?&#x27;Заказ принят&#x27;:&#x27;Заказ отклонён&#x27;;remove=true;
+    }
+  }finally{lock.releaseLock()}
+  // The stored decision is final even if the optional Telegram UI cleanup fails.
+  if(remove)try{mmConfirmTelegram_(&#x27;editMessageReplyMarkup&#x27;,{chat_id:chatId,message_id:message.message_id,reply_markup:{inline_keyboard:[]}})}catch(error){}
+  try{mmConfirmTelegram_(&#x27;answerCallbackQuery&#x27;,{callback_query_id:callback.id,text:answer})}catch(error){}
+}
+// Owner-only read-only diagnostics. Never log the webhook URL (it contains a key).
+function mmCheckProductionWebhook(){
+  const bot=mmConfirmTelegram_(&#x27;getMe&#x27;,{}),info=mmConfirmTelegram_(&#x27;getWebhookInfo&#x27;,{});
+  const props=PropertiesService.getScriptProperties(),key=props.getProperty(&#x27;MM_CONFIRM_HOOK_KEY&#x27;);
+  const base=ScriptApp.getService().getUrl(),expected=key?base+&#x27;?mmHook=&#x27;+encodeURIComponent(key):null;
+  const result={botIsProduction:String(bot.username||&#x27;&#x27;).toLowerCase()===&#x27;missmakibot&#x27;,hasWebhook:!!info.url,pointsToThisDeployment:!!expected&amp;&amp;info.url===expected,callbackUpdatesEnabled:!info.allowed_updates||!info.allowed_updates.length||info.allowed_updates.includes(&#x27;callback_query&#x27;),pendingUpdates:info.pending_update_count||0,hasDeliveryError:!!info.last_error_date};
+  console.log(JSON.stringify(result));return result;
+}
+// Run ONLY after explicit approval, updated deployment and read-only diagnostics.
+// Stops if another webhook is connected: do not silently disconnect integrations.
+function mmConnectProductionWebhook(){
+  const expectedBase=&#x27;https://script.google.com/macros/s/AKfycbypTmSYACXKHqKUXoCpnpJZpkhgH5s1NMJM3vtpBqBorNM14k76A8UM3wa_Mmoi3_VC/exec&#x27;;
+  const base=ScriptApp.getService().getUrl();
+  if(base!==expectedBase)throw Error(&#x27;Другой проект/адрес. Webhook не изменён.&#x27;);
+  const bot=mmConfirmTelegram_(&#x27;getMe&#x27;,{});
+  if(String(bot.username||&#x27;&#x27;).toLowerCase()!==&#x27;missmakibot&#x27;)throw Error(&#x27;Другой бот. Webhook не изменён.&#x27;);
+  const props=PropertiesService.getScriptProperties(),info=mmConfirmTelegram_(&#x27;getWebhookInfo&#x27;,{});
+  const oldKey=props.getProperty(&#x27;MM_CONFIRM_HOOK_KEY&#x27;);
+  const expected=oldKey?base+&#x27;?mmHook=&#x27;+encodeURIComponent(oldKey):null;
+  if(info.url &amp;&amp; info.url!==expected)throw Error(&#x27;У бота уже есть другой webhook. Ничего не изменено. Нужна отдельная проверка текущей интеграции.&#x27;);
+  if(!oldKey)props.setProperty(&#x27;MM_CONFIRM_HOOK_KEY&#x27;,Utilities.getUuid().replace(/-/g,&#x27;&#x27;)+Utilities.getUuid().replace(/-/g,&#x27;&#x27;));
+  const url=base+&#x27;?mmHook=&#x27;+encodeURIComponent(props.getProperty(&#x27;MM_CONFIRM_HOOK_KEY&#x27;));
+  // Prove that the PUBLISHED handler recognizes the secret, not an obsolete version.
+  let probe;
+  try{const response=UrlFetchApp.fetch(url,{method:&#x27;post&#x27;,contentType:&#x27;application/json&#x27;,payload:JSON.stringify({update_id:0}),followRedirects:true,muteHttpExceptions:true});probe={ok:response.getContentText().includes(&#x27;data-mm-hook-ok=&quot;true&quot;&#x27;)};if(response.getResponseCode()!==200)probe=null}catch(error){}
+  if(!probe||probe.ok!==true)throw Error(&#x27;Опубликованный обработчик не подтвердил проверку. Webhook не изменён.&#x27;);
+  mmConfirmTelegram_(&#x27;setWebhook&#x27;,{url:url,allowed_updates:[&#x27;callback_query&#x27;,&#x27;message&#x27;],drop_pending_updates:false});
+  return mmCheckProductionWebhook();
+}
+</textarea><h2>AvailabilityFix.gs</h2><p>Полная замена только существующего одноимённого файла. Ничего не разворачивать без отдельного согласования.</p><button onclick="copyCode('availability')">Скопировать AvailabilityFix.gs целиком</button><textarea id="availability" readonly>// Replace ONLY AvailabilityFix.gs. Keep existing doPost and Script Properties.
+// The owner confirmed that mmAvailability_ is absent from this project.
+// Uses the same ORDER_&lt;id&gt; schema and preorder rules as the recovered full code.
+function doGet(e) {
+  const p = e &amp;&amp; e.parameter || {};
+  let result;
+  try {
+    if (p.action === &#x27;availability&#x27;) {
+      result = mmAvailability_(String(p.date || &#x27;&#x27;), String(p.time || &#x27;&#x27;));
+    } else {
+      const id = String(p.orderId || &#x27;&#x27;);
+      if (!/^[a-zA-Z0-9-]{8,64}$/.test(id)) {
+        result = {ok:false, error:&#x27;Некорректный номер заказа&#x27;};
+      } else {
+        const order = typeof mmLoad_ === &#x27;function&#x27; ? mmLoad_(id) : mmavfix_load_(id);
+        if(order &amp;&amp; order.statusToken &amp;&amp; String(p.statusToken||&#x27;&#x27;)!==order.statusToken)throw Error(&#x27;Not authorized&#x27;);
+        result = order ? {
+          ok:true, status:order.status, minutes:order.minutes,
+          fulfillment:order.fulfillment, timing:order.timing || &#x27;asap&#x27;,
+          requestedDate:order.requestedDate, requestedTime:order.requestedTime
+        } : {ok:false, status:&#x27;unknown&#x27;};
+      }
+    }
+  } catch (error) {
+    console.error(&#x27;MissMaki: availability/status read failed; no order data changed&#x27;);
+    result = {ok:false, error:&#x27;Сервис проверки временно недоступен&#x27;};
+  }
+  const callback = String(p.callback || &#x27;&#x27;);
+  if (/^mmStatus_[a-zA-Z0-9_]{1,40}$/.test(callback)) {
+    return ContentService.createTextOutput(callback + &#x27;(&#x27; + JSON.stringify(result) + &#x27;);&#x27;)
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Available to the existing preorder doPost as well as doGet.
+function mmAvailability_(date, time) {
+  const now = new Date();
+  if (!mmavfix_valid_(date, time, now)) {
+    return {ok:false, error:&#x27;Недоступная дата или время&#x27;};
+  }
+  // Read once per request. Never clear, overwrite or migrate stored orders.
+  const props = PropertiesService.getScriptProperties().getProperties();
+  const records = Object.keys(props).filter(key =&gt; key.indexOf(&#x27;ORDER_&#x27;) === 0)
+    .map(key =&gt; {try {return JSON.parse(props[key]);} catch (error) {return null;}});
+  const taken = value =&gt; records.some(order =&gt; order &amp;&amp;
+    order.timing === &#x27;preorder&#x27; &amp;&amp; order.requestedDate === date &amp;&amp;
+    order.requestedTime === value &amp;&amp;
+    [&#x27;pending&#x27;,&#x27;awaiting_customer&#x27;,&#x27;accepted&#x27;].includes(order.status));
+  const available = !taken(time), alternatives = [];
+  const minutes = Number(time.slice(0,2)) * 60 + Number(time.slice(3));
+  for (let offset = 30; offset &lt;= 600 &amp;&amp; alternatives.length &lt; 2; offset += 30) {
+    for (const value of [minutes + offset, minutes - offset]) {
+      if (value &lt; 810 || value &gt; 1380) continue;
+      const choice = String(Math.floor(value / 60)).padStart(2,&#x27;0&#x27;) + &#x27;:&#x27; +
+        String(value % 60).padStart(2,&#x27;0&#x27;);
+      if (mmavfix_valid_(date, choice, now) &amp;&amp; !taken(choice)) {
+        alternatives.push(choice);
+        if (alternatives.length === 2) break;
+      }
+    }
+  }
+  return {ok:true, available:available, alternatives:alternatives};
+}
+
+function mmavfix_valid_(date, time, now) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) return false;
+  const parts = date.split(&#x27;-&#x27;).map(Number);
+  const check = new Date(Date.UTC(parts[0], parts[1]-1, parts[2]));
+  if (check.getUTCFullYear() !== parts[0] || check.getUTCMonth()+1 !== parts[1] ||
+      check.getUTCDate() !== parts[2]) return false;
+  const minutes = Number(time.slice(0,2)) * 60 + Number(time.slice(3));
+  if (minutes &lt; 810 || minutes &gt; 1380 || (minutes-810) % 30 !== 0) return false;
+  const today = Utilities.formatDate(now,&#x27;Europe/Moscow&#x27;,&#x27;yyyy-MM-dd&#x27;);
+  const last = Utilities.formatDate(new Date(now.getTime()+30*86400000),
+    &#x27;Europe/Moscow&#x27;,&#x27;yyyy-MM-dd&#x27;);
+  if (date &lt; today || date &gt; last) return false;
+  const current = Number(Utilities.formatDate(now,&#x27;Europe/Moscow&#x27;,&#x27;HH&#x27;)) * 60 +
+    Number(Utilities.formatDate(now,&#x27;Europe/Moscow&#x27;,&#x27;mm&#x27;));
+  return date !== today || minutes &gt; current + 30;
+}
+
+function mmavfix_load_(id) {
+  const raw = PropertiesService.getScriptProperties().getProperty(&#x27;ORDER_&#x27; + id);
+  return raw ? JSON.parse(raw) : null;
+}
+
+// Owner-only read-only check in the editor. No Telegram requests or order writes.
+function mmavfix_checkInstallation() {
+  const props = PropertiesService.getScriptProperties().getProperties();
+  const keys = Object.keys(props).filter(key =&gt; key.indexOf(&#x27;ORDER_&#x27;) === 0);
+  const writer = typeof mmSave_ === &#x27;function&#x27; ? String(mmSave_) : &#x27;&#x27;;
+  const handler = (typeof doPost === &#x27;function&#x27; ? String(doPost) : &#x27;&#x27;) +
+    (typeof mmHandleOrder_ === &#x27;function&#x27; ? String(mmHandleOrder_) : &#x27;&#x27;);
+  const result = {ok:true, hasDoPost:typeof doPost === &#x27;function&#x27;,
+    helperReady:typeof mmAvailability_ === &#x27;function&#x27;,
+    storedOrderRecords:keys.length, knownOrderWriterDetected:writer.includes(&#x27;ORDER_&#x27;) || handler.includes(&#x27;ORDER_&#x27;),
+    preorderValidationReferenced:handler.includes(&#x27;mmAvailability_&#x27;),
+    changedOrders:false, changedWebhook:false};
+  console.log(JSON.stringify(result));
+  return result;
+}
+</textarea><script>async function copyCode(id){const t=document.getElementById(id);t.focus();t.select();t.setSelectionRange(0,t.value.length);try{if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(t.value);else if(!document.execCommand('copy'))throw Error();document.getElementById('result').textContent='Скопирован полный файл: '+(id==='code'?'Код.gs':'AvailabilityFix.gs')}catch(e){document.getElementById('result').textContent='Текст выделен. Нажмите «Скопировать». Если iPhone не позволяет — запросите полный файл в сообщении.'}}</script></body></html>

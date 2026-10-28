@@ -1,0 +1,51 @@
+{
+  "passed": true,
+  "engine": "webkit",
+  "viewport": "390x844 touch",
+  "allNetworkMutationsMocked": true,
+  "actualIphoneTested": false,
+  "results": [
+    {
+      "variant": "asap-60",
+      "passed": true,
+      "postCount": 1,
+      "statusGets": 2
+    },
+    {
+      "variant": "preorder-accept",
+      "passed": true,
+      "postCount": 1,
+      "statusGets": 2
+    },
+    {
+      "variant": "reject",
+      "passed": true,
+      "postCount": 1,
+      "statusGets": 2
+    },
+    {
+      "variant": "pickup",
+      "passed": true,
+      "postCount": 1,
+      "statusGets": 2
+    },
+    {
+      "variant": "uncertain",
+      "passed": true,
+      "postCount": 2,
+      "statusGets": 0
+    },
+    {
+      "variant": "status-error",
+      "passed": true,
+      "postCount": 1,
+      "statusGets": 3
+    },
+    {
+      "variant": "two-orders",
+      "passed": true,
+      "postCount": 2,
+      "statusGets": 4
+    }
+  ]
+}

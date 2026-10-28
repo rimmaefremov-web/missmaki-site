@@ -1,0 +1,32 @@
+{
+  "site": {
+    "httpStatus": 200,
+    "sha256": "1a40170cf509cad92acfb4ee4a3463efc6a671b0617ab3ab64a9af4e2300845c",
+    "matchesBackup": true
+  },
+  "repository": {
+    "httpStatus": 200,
+    "files": [
+      {
+        "name": "CNAME",
+        "sha": "3789a269610fe363a2d4cab4320944ca0f5d1ad1",
+        "type": "file"
+      },
+      {
+        "name": "README.md",
+        "sha": "c352b8bb42545b45b0179be2ceeb7db5f06a31ed",
+        "type": "file"
+      },
+      {
+        "name": "index.html",
+        "sha": "2efe82360039a7eb2dc9d6b42e5cf1f8c322414d",
+        "type": "file"
+      },
+      {
+        "name": "test",
+        "sha": "23a438a81aab1bdb88f4073160c495e4ce43951b",
+        "type": "dir"
+      }
+    ]
+  }
+}

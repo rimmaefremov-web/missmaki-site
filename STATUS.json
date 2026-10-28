@@ -1,0 +1,19 @@
+{
+  "preparedOnly": true,
+  "published": false,
+  "installed": false,
+  "productionBotChanged": false,
+  "testBotChanged": false,
+  "mainChanged": false,
+  "baselineOwnerConfirmedInstalled": true,
+  "liveOrderBeforeThisUpdateOwnerConfirmed": true,
+  "newTelegramConfirmationLiveVerified": false,
+  "actualIphoneTested": false,
+  "legalDocuments": "drafts, require missing facts and review",
+  "serverTests": true,
+  "browserEngines": {
+    "chromium": true,
+    "webkit": true
+  },
+  "staticTests": true
+}
