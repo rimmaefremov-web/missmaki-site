@@ -62,7 +62,14 @@ function mmwsPrepareSwitch(){
    x.props.setProperty(x.c.backup,JSON.stringify(snapshot));
    return mmwsReport_({prepared:true,backupSaved:true,webhookUnchanged:true,previousHeaderSecretReviewRequired:!!x.info.url});
   }finally{lock.releaseLock()}
- }catch(error){return mmwsReport_({prepared:false,webhookUnchanged:true})}
+ }catch(error){
+  // Report the failing guard without exposing the deployment URL, token, or webhook secret.
+  const reason=error&&error.message==='MMWS_WRONG_PROJECT'?'projectOrDeploymentMismatch':
+   error&&error.message==='MMWS_WRONG_BOT'?'botMismatch':
+   error&&error.message==='MMWS_TELEGRAM_NOT_CONFIRMED'?'telegramUnavailable':
+   'otherPreparationError';
+  return mmwsReport_({prepared:false,webhookUnchanged:true,reason:reason});
+ }
 }
 // Run ONLY if the owner has verified that the OLD integration did not use the
 // Telegram secret_token HEADER or a manually pinned IP address.
