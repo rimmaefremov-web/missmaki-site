@@ -23,7 +23,10 @@ function mmwsEndpoint_(url){
 }
 function mmwsContext_(){
  const c=mmwsConfig_();
- if(ScriptApp.getScriptId()!==c.script||ScriptApp.getService().getUrl()!==c.base)throw Error('MMWS_WRONG_PROJECT');
+ // ScriptApp.getService().getUrl() can resolve to a different deployment URL
+ // than the explicitly selected production /exec. Verify the project ID here;
+ // the configured production endpoint remains fixed and is checked before switching.
+ if(ScriptApp.getScriptId()!==c.script)throw Error('MMWS_WRONG_PROJECT');
  const bot=mmwsApi_('getMe');
  if(String(bot.username||'').toLowerCase()!=='missmakibot'||!bot.id)throw Error('MMWS_WRONG_BOT');
  const info=mmwsApi_('getWebhookInfo');
