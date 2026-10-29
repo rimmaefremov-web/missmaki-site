@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "cases": 15,
+  "oldGenericFailureReproduced": true,
+  "distinctCausesReported": true,
+  "readOnly": true,
+  "onlyGetMeAndGetWebhookInfoCalled": true,
+  "allOutputsBoolean": true,
+  "noSecretsPrinted": true,
+  "allExternalCallsMocked": true
+}
