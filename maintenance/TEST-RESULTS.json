@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "allExternalCallsMocked": true,
+  "liveWebhookChanged": false,
+  "checks": [
+    "booleans-only read-only diagnostics",
+    "same URL / different secret separated",
+    "private backup, explicit review, explicit switch and rollback",
+    "wrong project/bot/test URL/custom certificate/foreign host blocked",
+    "pending updates / stale backup / failed probe blocked",
+    "no pending updates dropped",
+    "original allowed-update default preserved",
+    "ambiguous switch recoverable",
+    "foreign replacement not overwritten on rollback",
+    "no secrets printed; credentials preserved",
+    "retry after failed probe safe"
+  ]
+}
