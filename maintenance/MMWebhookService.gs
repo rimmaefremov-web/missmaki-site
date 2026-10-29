@@ -53,7 +53,10 @@ function mmwsCheck(){
 function mmwsPrepareSwitch(){
  try{
   const x=mmwsContext_(),e=mmwsEndpoint_(x.info.url);
-  if(x.info.has_custom_certificate||e.id===x.c.test|| (x.info.url&&!e.base))return mmwsReport_({prepared:false,unsupportedPreviousWebhook:true,webhookUnchanged:true});
+  if(x.info.has_custom_certificate||e.id===x.c.test)return mmwsReport_({prepared:false,unsupportedPreviousWebhook:true,webhookUnchanged:true});
+  // A non-Apps-Script webhook can still be snapshotted verbatim. This does NOT
+  // establish that its unknown header secret, pinned IP, or behavior is restorable.
+  const previousWebhookIsExternal=!!x.info.url&&!e.base;
   const lock=LockService.getUserLock();lock.waitLock(10000);
   try{
    const old=mmwsLoad_(x);
@@ -63,7 +66,7 @@ function mmwsPrepareSwitch(){
     old:{url:String(x.info.url||''),allowed_updates:x.info.allowed_updates||[],max_connections:Number(x.info.max_connections||40),has_custom_certificate:false},
     previousKey:x.props.getProperty(x.c.key),target:null,noPreviousHeaderSecretConfirmed:!x.info.url};
    x.props.setProperty(x.c.backup,JSON.stringify(snapshot));
-   return mmwsReport_({prepared:true,backupSaved:true,webhookUnchanged:true,previousHeaderSecretReviewRequired:!!x.info.url});
+   return mmwsReport_({prepared:true,backupSaved:true,webhookUnchanged:true,previousHeaderSecretReviewRequired:!!x.info.url,previousWebhookIsExternal:previousWebhookIsExternal});
   }finally{lock.releaseLock()}
  }catch(error){
   // Report the failing guard without exposing the deployment URL, token, or webhook secret.
