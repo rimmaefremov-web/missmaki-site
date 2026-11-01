@@ -1,0 +1,2 @@
+const {defineConfig,devices}=require('@playwright/test');
+module.exports=defineConfig({testDir:'./tests/browser',timeout:30000,use:{baseURL:'http://127.0.0.1:4173',serviceWorkers:'block'},projects:[{name:'phone',use:{...devices['iPhone 13'],defaultBrowserType:'chromium'}},{name:'tablet',use:{...devices['iPad (gen 7)'],defaultBrowserType:'chromium'}},{name:'desktop',use:{viewport:{width:1440,height:1000}}}],webServer:{command:'python -m http.server 4173 --bind 127.0.0.1',port:4173,reuseExistingServer:false}});
