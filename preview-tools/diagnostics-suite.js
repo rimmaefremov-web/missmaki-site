@@ -4,14 +4,14 @@
  const must=(condition,message)=>{if(!condition)throw Error(message);};
  const ok=result=>{if(result.error)throw result.error;return result.data;};
  const denied=result=>{must(!!result.error&&(['42501','403'].includes(String(result.error.code))||(result.error.code==='P0001'&&/Доступ запрещён/.test(result.error.message))),'Операция не подтверждена как запрещённая правами');};
- window.MMTestSuite=async({staff,makeCustomer,onStep})=>{
-  const report={kind:'MissMaki-test',startedAt:new Date().toISOString(),steps:[],complete:false};let a,b,orderId;
+ window.MMTestSuite=async({staff,makeCustomer,onStep,customerAuthMode='anonymous'})=>{
+  const report={kind:'MissMaki-test',startedAt:new Date().toISOString(),steps:[],complete:false,customerAuthMode,guestCheckoutVerified:false};let a,b,orderId;
   const step=async(name,fn)=>{try{await fn();report.steps.push({name,result:'ok'});onStep?.(name,true);}catch(e){report.steps.push({name,result:'failed',code:/^[\w-]{1,40}$/.test(String(e.code))?String(e.code):'check_failed'});onStep?.(name,false);throw e;}};
   const read=async()=>{const rows=ok(await staff.from('orders').select('id,number,status,minutes,version').eq('id',orderId));must(rows?.length===1,'Тестовый заказ не найден');return rows[0];};
   const change=async(status,minutes)=>{const row=await read();ok(await staff.rpc('order_status',{p_id:orderId,p_status:status,p_minutes:minutes,p_version:row.version}));};
   try{
    await step('Вход сотрудника и роль',async()=>{must(ok(await staff.rpc('is_staff'))===true,'Нет роли сотрудника');});
-   await step('Анонимные сессии двух покупателей',async()=>{a=await makeCustomer();b=await makeCustomer();must(a.id&&b.id&&a.id!==b.id,'Нужны две независимые сессии');must(ok(await a.client.rpc('is_staff'))===false,'Покупатель получил роль сотрудника');});
+   await step(customerAuthMode==='synthetic-email'?'Две независимые вымышленные учётные записи':'Анонимные сессии двух покупателей',async()=>{a=await makeCustomer();b=await makeCustomer();must(a.id&&b.id&&a.id!==b.id,'Нужны две независимые сессии');must(ok(await a.client.rpc('is_staff'))===false,'Покупатель получил роль сотрудника');});
    let payload,request;
    await step('Создание вымышленного предзаказа',async()=>{
     const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
@@ -34,6 +34,7 @@
   finally{
    if(orderId)try{await change('rejected',null);report.cleanup='Тестовый заказ оставлен отклонённым';}catch{report.complete=false;report.cleanup='Проверьте АВТОТЕСТ в кухне: не удалось завершить отказом';}
    for(const c of [a,b])if(c)try{await c.client.auth.signOut({scope:'local'});}catch{}
+   report.guestCheckoutVerified=report.complete&&customerAuthMode==='anonymous';
    report.finishedAt=new Date().toISOString();
   }
   return report;

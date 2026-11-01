@@ -18,3 +18,8 @@ test('hung API requests time out and external cancellation is forwarded',async()
  const first=f('https://fixture-only.supabase.co');assert.equal(timers.size,1);[...timers.values()][0]();await assert.rejects(first,/aborted/);assert.equal(timers.size,0);
  const c=new AbortController();const second=f('https://fixture-only.supabase.co',{signal:c.signal});c.abort();await assert.rejects(second,/aborted/);assert.equal(timers.size,0);
 });
+
+test('disabled anonymous provider gives an explicit error without a false order confirmation',async()=>{
+ for(const code of ['anonymous_provider_disabled',422]){const client={auth:{getSession:async()=>({data:{session:null}}),signInAnonymously:async()=>({error:{code,message:'Anonymous sign-ins are disabled'}})}};
+ const {api}=load(client);await assert.rejects(api.customer(),/отключён анонимный вход покупателей.*Заказ не отправлен/);}
+});

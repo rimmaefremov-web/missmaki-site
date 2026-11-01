@@ -30,7 +30,7 @@
     widget=turnstile.render(target,{sitekey:c.captchaSiteKey,callback:token=>finish(null,token),'error-callback':()=>finish(Error('Не удалось пройти проверку')),'expired-callback':()=>finish(Error('Проверка истекла. Повторите попытку'))});
    });
   },
-  async customer(){if(signing)return signing;signing=(async()=>{const s=this.client();const {data,error}=await s.auth.getSession();if(error)throw error;if(!data.session){const r=await s.auth.signInAnonymously({options:{captchaToken:await this.captcha()}});if(r.error)throw r.error;}return s;})();try{return await signing;}finally{signing=null;}},
+  async customer(){if(signing)return signing;signing=(async()=>{const s=this.client();const {data,error}=await s.auth.getSession();if(error)throw error;if(!data.session){const r=await s.auth.signInAnonymously({options:{captchaToken:await this.captcha()}});if(r.error){if((r.error.code==='anonymous_provider_disabled'||/anonymous sign-ins are disabled/i.test(r.error.message||'')))throw Error('Приём тестовых заказов пока недоступен: в базе отключён анонимный вход покупателей. Заказ не отправлен.');throw r.error;}}return s;})();try{return await signing;}finally{signing=null;}},
   async rpc(name,args={}){const {data,error}=await this.client().rpc(name,args);if(error)throw error;return data;},
   subscribe(refresh,health){
    let running=false,stopped=false,last=Date.now();
