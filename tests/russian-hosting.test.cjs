@@ -30,3 +30,12 @@ test('Supabase library is local, pinned and matches recorded digest',()=>{
  const digest=createHash('sha256').update(fs.readFileSync('shared/vendor/supabase.js')).digest('hex');assert(fs.readFileSync('shared/vendor/README.md','utf8').includes(digest));
  for(const f of ['index.html','kitchen/index.html'])assert(!/https:\/\/cdn\.jsdelivr/.test(fs.readFileSync(f,'utf8')));
 });
+
+test('database guest preview keeps admin Auth, includes worker and never enables source config',()=>{
+ const temp=fs.mkdtempSync(path.join(os.tmpdir(),'mm-guest-export-'));const out=path.join(temp,'preview');const original=fs.readFileSync('shared/config.js');
+ try{
+  execFileSync(process.execPath,['scripts/build-russian-preview.mjs','--setup','--database-guests','--output',out]);const box={window:{}};vm.runInNewContext(fs.readFileSync(path.join(out,'shared/config.js'),'utf8'),box);assert.equal(box.window.MISSMAKI_CONFIG.guestMode,'database-token');assert.equal(box.window.MISSMAKI_CONFIG.enabled,false);
+  for(const f of ['shared/guest-pow-worker.mjs','shared/vendor/noble/sha256.js','kitchen/guest-diagnostics-suite.js','setup/index.html'])assert(fs.existsSync(path.join(out,f)));
+  assert(!fs.existsSync(path.join(out,'supabase/migrations/003_guest_checkout.sql')));assert.deepEqual(fs.readFileSync('shared/config.js'),original);
+ }finally{fs.rmSync(temp,{recursive:true,force:true});}
+});

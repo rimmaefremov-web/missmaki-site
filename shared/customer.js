@@ -19,9 +19,7 @@ if(window.MM?.enabled){
   try{localStorage.setItem('missmaki-active-order',id);}catch(e){}
   stopWatching?.();
   stopWatching=MM.subscribe(async()=>{
-   const s=await MM.customer();
-   const {data,error}=await s.from('orders').select('number,status,minutes').eq('request_id',id).maybeSingle();
-   if(error)throw error;
+   const data=await MM.order(id);
    if(!data){document.getElementById('status').textContent='Заказ пока не найден в базе. Если отправка завершилась ошибкой, повторите с той же корзиной.';return;}
    const msg=data.status==='accepted'?`Ваш заказ №${data.number} принят! Время ожидания — ${data.minutes} минут`:data.status==='rejected'?'К сожалению, сейчас мы не можем принять ваш заказ':data.status==='completed'?`Заказ №${data.number} выполнен`:`Заказ №${data.number} отправлен. Ожидаем подтверждения MissMaki…`;
    document.getElementById('status').textContent=msg;
@@ -52,8 +50,7 @@ if(window.MM?.enabled){
  }
  async function refreshReviews(){
   const published=await MM.rpc('public_reviews');
-  const {data:sessionData,error:sessionError}=await MM.client().auth.getSession();if(sessionError)throw sessionError;
-  const mine=sessionData.session?await MM.rpc('my_reviews'):[];
+  const mine=await MM.hasCustomer()?await MM.rpc('my_reviews'):[];
   const area=document.getElementById('published-reviews');area.replaceChildren();
   for(const r of published){const article=document.createElement('article');article.style.cssText='border:1px solid #ddd;border-radius:16px;padding:18px;margin:12px 0';const title=document.createElement('strong');title.textContent=r.name+' · '+'★'.repeat(r.rating);const text=document.createElement('p');text.textContent=r.body;const date=document.createElement('small');date.textContent=new Date(r.created_at).toLocaleString('ru-RU');article.append(title,text,date);area.append(article);}
   const last=mine[0];if(last)document.getElementById('review-status').textContent=last.status==='approved'?'Ваш отзыв опубликован':'Ваш отзыв ожидает подтверждения';
@@ -69,5 +66,5 @@ if(window.MM?.enabled){
    setMethod();updateTiming();if(p.requestedTime)document.getElementById('preorder-time').value=p.requestedTime;
   }
  }catch(e){document.getElementById('status').textContent='Не удалось восстановить черновик заказа. Свяжитесь с MissMaki перед новой отправкой.';}
- (async()=>{try{const {data,error}=await MM.client().auth.getSession();if(error)throw error;const active=localStorage.getItem('missmaki-active-order');if(active&&data.session)watchOrder(active);MM.subscribe(refreshReviews);}catch(e){document.getElementById('review-status').textContent='Не удалось подключиться: '+e.message;}})();
+ (async()=>{try{const hasSession=await MM.hasCustomer();const active=localStorage.getItem('missmaki-active-order');if(active&&hasSession)watchOrder(active);MM.subscribe(refreshReviews);}catch(e){document.getElementById('review-status').textContent='Не удалось подключиться: '+e.message;}})();
 }
