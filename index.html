@@ -160,7 +160,7 @@ async function checkoutOnce(){
   try{localStorage.setItem(recordKey,JSON.stringify({requestId:pending.requestId,createdAt:shared?.createdAt||Date.now(),state:'sent',confirmedAt:Date.now()}))}catch(e){}
   // Cart keys belong to the display, not the server. Preserve additions during the request.
   for(const item of snapshot){if(cart[item.sku]){cart[item.sku].quantity-=item.quantity;if(cart[item.sku].quantity<=0)delete cart[item.sku]}}
-  const pendingOrderId=pending.requestId;pending=null;try{sessionStorage.removeItem('missmaki-pending-order')}catch(e){}
+  const pendingOrderId=result.requestId||pending.requestId;pending=null;try{sessionStorage.removeItem('missmaki-pending-order')}catch(e){}
   renderCart();document.getElementById('payment-info').hidden=false;document.getElementById('payment-info').scrollIntoView({behavior:'smooth',block:'center'});status.textContent=(timing==='preorder'?'🍣 Предзаказ отправлен. Ожидаем подтверждения MissMaki…':'🍣 Заказ отправлен. Ожидаем подтверждения MissMaki…');watchOrder(pendingOrderId);
  }catch(e){
   status.textContent=window.MM?.enabled?'Не удалось подтвердить отправку. Повторите с той же корзиной: дубликат не создастся. '+(e.message||'Проверьте интернет.'):'Не удалось подтвердить заказ. Он мог быть отправлен — свяжитесь с MissMaki перед повторной отправкой.';

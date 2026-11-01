@@ -36,10 +36,11 @@ test('customer live acceptance, rejected review stays pending, no legacy request
 
 test('lost order response restores checkout after reload and reuses request ID',async({page})=>{
  await mock(page);await page.goto('/');await page.evaluate(()=>{isOpen=()=>true;add(1);document.querySelector('input[name="fulfillment"][value="pickup"]').checked=true;setMethod();updateHours();window.__fake.failOrderOnce=true;});
- await page.locator('#name').fill('Покупатель');await page.locator('#phone').fill('+79530000000');await page.locator('#send').click();
- await expect(page.locator('#status')).toContainText('Не удалось подтвердить отправку');
+ await page.locator('#name').fill('Покупатель');await page.locator('#phone').fill('+79530000000');await page.locator('#send').focus();await page.keyboard.press('Enter');
+ await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('mm-pending-submission'))).toBe(true);
+ await expect(page.locator('#status')).toContainText('№42');
  const request=await page.evaluate(()=>JSON.parse(localStorage.getItem('mm-pending-submission')).requestId);
- await page.reload();await expect(page.locator('#name')).toHaveValue('Покупатель');await expect(page.locator('#cart')).toContainText('Филадельфия');await page.locator('#send').click();
+ await page.reload();await expect(page.locator('#name')).toHaveValue('Покупатель');await expect(page.locator('#cart')).toContainText('Филадельфия');await page.locator('#send').focus();await page.keyboard.press('Enter');
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('mm-pending-submission'))).toBeNull();
  const calls=await page.evaluate(()=>window.__fake.calls.filter(c=>c.name==='create_order'));expect(calls[0].args.p_request).toBe(request);
 });

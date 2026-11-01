@@ -43,8 +43,11 @@ begin
  select * into existing from public.orders where customer_id=auth.uid() and request_id=p_request;
  if found then
   if existing.payload<>p then raise exception 'Этот номер запроса уже использован'; end if;
-  return jsonb_build_object('ok',true,'id',existing.id,'number',existing.number);
+  return jsonb_build_object('ok',true,'id',existing.id,'number',existing.number,'requestId',existing.request_id);
  end if;
+ -- Serialize per customer; identical submissions from tabs without Web Locks also converge.
+ select * into existing from public.orders where customer_id=auth.uid() and payload=p and created_at>now()-interval '10 minutes' order by created_at desc limit 1;
+ if found then return jsonb_build_object('ok',true,'id',existing.id,'number',existing.number,'requestId',existing.request_id); end if;
  if (select count(*) from public.orders where customer_id=auth.uid() and created_at>now()-interval '10 minutes')>=5 then raise exception 'Слишком много заказов. Позвоните в MissMaki'; end if;
  if jsonb_typeof(p->'items') is distinct from 'array' or jsonb_array_length(p->'items') not between 1 and 100 then raise exception 'Проверьте корзину'; end if;
  if length(trim(coalesce(p->>'name',''))) not between 1 and 100 or length(coalesce(p->>'phone','')) not between 10 and 50 or (p->>'phone')!~'^\+?[0-9 ()-]+$' or length(coalesce(p->>'comment',''))>1000 then raise exception 'Проверьте имя, телефон и комментарий'; end if;
@@ -72,7 +75,7 @@ begin
  insert into public.orders(customer_id,request_id,payload,name,phone,address,area,fulfillment,timing,requested_date,requested_time,items,subtotal,delivery,total,comment)
  values(auth.uid(),p_request,p,p->>'name',p->>'phone',case when p->>'fulfillment'='pickup' then 'п. Южный, ул. Северная, 16/1' else p->>'address' end,coalesce(p->>'area',''),p->>'fulfillment',p->>'timing',d,t,cooked,amount,fee,amount+fee,coalesce(p->>'comment','')) returning * into result;
  insert into public.audit(entity,entity_id,actor,new_status) values('order',result.id,auth.uid(),'new');
- return jsonb_build_object('ok',true,'id',result.id,'number',result.number);
+ return jsonb_build_object('ok',true,'id',result.id,'number',result.number,'requestId',result.request_id);
 exception when unique_violation then raise exception 'Время предзаказа уже занято. Выберите другое';
 end $$;
 
@@ -87,7 +90,17 @@ begin
  insert into public.audit(entity,entity_id,actor,old_status,new_status,minutes) values('order',p_id,auth.uid(),o.status,p_status,p_minutes);
 end $$;
 create function public.availability(p_date date,p_time time) returns jsonb language sql stable security definer set search_path='' as $$
- select jsonb_build_object('ok',true,'available',p_date is not null and p_time is not null and p_date between (now() at time zone 'Europe/Moscow')::date and (now() at time zone 'Europe/Moscow')::date+30 and p_time between time '13:30' and time '23:00' and extract(minute from p_time) in (0,30) and extract(second from p_time)=0 and p_date+p_time>(now() at time zone 'Europe/Moscow')+interval '30 minutes' and not exists(select 1 from public.orders where requested_date=p_date and requested_time=p_time and status in ('new','accepted')))
+ with free_slots as (
+  select slot from generate_series(p_date+time '13:30',p_date+time '23:00',interval '30 minutes') slot
+  where p_date between (now() at time zone 'Europe/Moscow')::date and (now() at time zone 'Europe/Moscow')::date+30
+   and slot>(now() at time zone 'Europe/Moscow')+interval '30 minutes'
+   and not exists(select 1 from public.orders where requested_date=slot::date and requested_time=slot::time and status in ('new','accepted'))
+ ), alternatives as (
+  select slot from free_slots order by abs(extract(epoch from (slot-(p_date+p_time)))) limit 3
+ )
+ select jsonb_build_object('ok',true,
+  'available',exists(select 1 from free_slots where slot=p_date+p_time),
+  'alternatives',(select coalesce(jsonb_agg(to_char(slot,'HH24:MI') order by slot),'[]'::jsonb) from alternatives))
 $$;
 create function public.submit_review(p_request uuid,p_name text,p_rating integer,p_body text,p_consent boolean) returns uuid language plpgsql security definer set search_path='' as $$
 declare rid uuid;

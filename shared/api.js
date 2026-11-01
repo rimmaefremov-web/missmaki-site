@@ -2,12 +2,19 @@
 (()=>{
  const c=window.MISSMAKI_CONFIG;
  let client,signing;
+ async function timedFetch(url,init={}){
+  const controller=new AbortController();const abort=()=>controller.abort();
+  if(init.signal?.aborted)abort();else init.signal?.addEventListener('abort',abort,{once:true});
+  const timer=setTimeout(abort,15000);
+  try{return await fetch(url,{...init,signal:controller.signal});}
+  finally{clearTimeout(timer);init.signal?.removeEventListener('abort',abort);}
+ }
  window.MM={
   enabled:!!c?.enabled,
   client(){
    if(!c?.enabled||!/^https:\/\/[a-z0-9.-]+$/.test(c.supabaseUrl)||!c.publishableKey)throw Error('Система кухни ещё не подключена');
    if(!window.supabase)throw Error('Не удалось загрузить систему. Проверьте интернет');
-   return client??=supabase.createClient(c.supabaseUrl,c.publishableKey,{auth:{storageKey:location.pathname.startsWith('/kitchen')?'mm-staff':'mm-customer',persistSession:true,autoRefreshToken:true}});
+   return client??=supabase.createClient(c.supabaseUrl,c.publishableKey,{global:{fetch:timedFetch},auth:{storageKey:location.pathname.startsWith('/kitchen')?'mm-staff':'mm-customer',persistSession:true,autoRefreshToken:true}});
   },
   async captcha(){
    if(!c.captchaSiteKey)return undefined;
@@ -23,10 +30,10 @@
   async customer(){if(signing)return signing;signing=(async()=>{const s=this.client();const {data,error}=await s.auth.getSession();if(error)throw error;if(!data.session){const r=await s.auth.signInAnonymously({options:{captchaToken:await this.captcha()}});if(r.error)throw r.error;}return s;})();try{return await signing;}finally{signing=null;}},
   async rpc(name,args={}){const {data,error}=await this.client().rpc(name,args);if(error)throw error;return data;},
   subscribe(refresh,health){
-   let running=false,stopped=false,last=0;
+   let running=false,stopped=false,last=Date.now();
    const tick=async()=>{if(running||stopped)return;running=true;try{await refresh();last=Date.now();health?.(true);}catch(e){health?.(false,e);}finally{running=false;}};
    const ch=this.client().channel('mm-'+crypto.randomUUID()).on('postgres_changes',{event:'*',schema:'public',table:'orders'},tick).on('postgres_changes',{event:'*',schema:'public',table:'reviews'},tick).subscribe(state=>{if(state==='SUBSCRIBED')tick();});
-   const timer=setInterval(tick,3000);const online=()=>tick();const visible=()=>{if(!document.hidden)tick();};window.addEventListener('online',online);document.addEventListener('visibilitychange',visible);tick();
+   const timer=setInterval(()=>{if(Date.now()-last>15000)health?.(false,Error('Давно нет ответа сервера'));tick();},3000);const online=()=>tick();const visible=()=>{if(!document.hidden)tick();};window.addEventListener('online',online);document.addEventListener('visibilitychange',visible);tick();
    return ()=>{stopped=true;clearInterval(timer);this.client().removeChannel(ch);window.removeEventListener('online',online);document.removeEventListener('visibilitychange',visible);};
   }
  };

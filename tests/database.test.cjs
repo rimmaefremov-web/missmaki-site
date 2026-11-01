@@ -22,13 +22,15 @@ after(()=>db.close());
 test('persist order and reuse request after lost response; reject altered request',async()=>{
  await who(A);const request=uuid();const first=await rpc('select public.create_order($1,$2) as r',[request,payload]);order=first.r;
  const again=await rpc('select public.create_order($1,$2) as r',[request,payload]);assert.deepEqual(again.r,order);
+ const otherTab=await rpc('select public.create_order($1,$2) as r',[uuid(),payload]);assert.deepEqual(otherTab.r,order);
  await assert.rejects(query('select public.create_order($1,$2)',[request,{...payload,name:'Другой'}]),/уже использован/);
  assert.equal((await query('select count(*)::int as n from public.orders')).rows[0].n,1);
 });
 test('server rejects client prices, illegal quantities, unknown SKU and occupied preorder slot',async()=>{
  await who(A);
  for(const p of [{...payload,total:1},{...payload,items:[{sku:'5:0',quantity:-1}]},{...payload,items:[{sku:'fake',quantity:1}]}])await assert.rejects(query('select public.create_order($1,$2)',[uuid(),p]));
- await who(B);await assert.rejects(query('select public.create_order($1,$2)',[uuid(),payload]),/занято/);
+ await who(B);const slots=(await query('select public.availability($1,$2) as r',[payload.requestedDate,payload.requestedTime])).rows[0].r;assert.equal(slots.available,false);assert.equal(slots.alternatives.length,3);assert(!slots.alternatives.includes('14:00'));
+ await assert.rejects(query('select public.create_order($1,$2)',[uuid(),payload]),/занято/);
 });
 test('customer cannot view another order or change state directly or through RPC',async()=>{
  await who(B);assert.equal((await query('select * from public.orders')).rows.length,0);

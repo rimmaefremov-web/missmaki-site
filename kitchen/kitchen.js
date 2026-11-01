@@ -2,7 +2,7 @@
 (()=>{
  const $=id=>document.getElementById(id),times=[15,30,45,60,90,120,150,180];
  const labels={new:'Новый',accepted:'Принят',rejected:'Отклонён',completed:'Выполнен',pending:'Ожидает модерации',approved:'Опубликован'};
- let tab='new',limit=100,orders=[],reviews=[],stop,sessionId,refreshing=false,pendingRefresh=false,seen=new Set(),audio,authorized=false,mutation=false;
+ let tab='new',limit=100,orders=[],reviews=[],stop,sessionId,refreshing=false,pendingRefresh=false,seen=new Set(),audio,authorized=false,mutation=false,renderedKey='',sessionEpoch=0;
  const error=e=>{$('error').textContent=e?.message||String(e);};
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const health=ok=>{const n=$('connection');n.textContent=ok?'Соединение есть · '+new Date().toLocaleTimeString('ru-RU'):'Нет соединения. Новые заказы невозможно получить. Проверяем повторно…';n.className=ok?'online':'warning';};
@@ -10,7 +10,7 @@
  $('sound').onclick=async()=>{try{audio??=new(window.AudioContext||window.webkitAudioContext)();await audio.resume();beep();$('sound').textContent='Звук включён · проверить';}catch(e){error(Error('Браузер не разрешил звук. Держите заказы на экране.'));}};
  setInterval(()=>{if(authorized&&orders.some(o=>o.status==='new'))beep();},30000);
  async function refresh(){
-  if(refreshing){pendingRefresh=true;return;}refreshing=true;
+  if(refreshing){pendingRefresh=true;return;}refreshing=true;const epoch=sessionEpoch;
   try{
    const s=MM.client();const staff=await MM.rpc('is_staff');if(!staff){authorized=false;orders=[];reviews=[];$('cards').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;throw Error('Нет прав сотрудника. Обратитесь к владельцу');}
    async function pages(make,n){const data=[];for(let start=0;start<n;start+=500){const part=await make().range(start,Math.min(start+499,n-1));if(part.error)return part;data.push(...part.data);if(part.data.length<Math.min(500,n-start))break;}return {data,error:null};}
@@ -18,6 +18,7 @@
    if(o.error)throw o.error;if(r.error)throw r.error;
    // Always query new orders separately: old unconfirmed orders must not disappear behind history.
    const fresh={data:[]};let offset=0;while(true){const part=await s.from('orders').select('*').eq('status','new').order('created_at').order('id').range(offset,offset+499);if(part.error)throw part.error;fresh.data.push(...part.data);if(part.data.length<500)break;offset+=500;}
+   if(!authorized||epoch!==sessionEpoch)return;
    const map=new Map(o.data.map(x=>[x.id,x]));for(const x of fresh.data)map.set(x.id,x);
    orders=[...map.values()];reviews=r.data;
    if(fresh.data.some(x=>!seen.has(x.id)))beep();seen=new Set(fresh.data.map(x=>x.id));
@@ -27,6 +28,7 @@
  function button(text,fn,cls){const b=el('button',text,cls);b.disabled=mutation;b.onclick=()=>act(fn);return b;}
  async function act(fn){if(mutation)return;mutation=true;render();try{await fn();await refresh();}catch(e){error(e);}finally{mutation=false;render();}}
  function render(){
+  const key=JSON.stringify({tab,limit,orders,reviews,mutation});if(key===renderedKey)return;renderedKey=key;
   const cards=$('cards');cards.replaceChildren();document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===tab)));
   const rows=tab==='reviews'?reviews:tab==='history'?orders:orders.filter(x=>x.status===tab);
   $('summary').textContent=`Новых заказов: ${orders.filter(x=>x.status==='new').length}. Показано: ${rows.length}.`;
@@ -56,9 +58,9 @@
   }
  }
  async function session(session){
-  const id=session?.user.id;if(id===sessionId&&authorized)return;sessionId=id;stop?.();authorized=false;orders=[];reviews=[];seen.clear();$('cards').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;
+  const id=session?.user.id;if(id===sessionId&&authorized)return;const epoch=++sessionEpoch;sessionId=id;stop?.();authorized=false;orders=[];reviews=[];seen.clear();$('cards').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;
   if(!session){health(false);return;}
-  try{if(!await MM.rpc('is_staff'))throw Error('Доступ только для сотрудников. Обратитесь к владельцу');authorized=true;$('workspace').hidden=false;$('login').hidden=true;stop=MM.subscribe(refresh,(ok,e)=>{health(ok);if(e)error(e);});}catch(e){error(e);}
+  try{const member=await MM.rpc('is_staff');if(epoch!==sessionEpoch)return;if(!member)throw Error('Доступ только для сотрудников. Обратитесь к владельцу');authorized=true;$('workspace').hidden=false;$('login').hidden=true;stop=MM.subscribe(refresh,(ok,e)=>{health(ok);if(e)error(e);});}catch(e){error(e);}
  }
  $('login-form').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;try{const {data,error:e}=await MM.client().auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(e)throw e;$('password').value='';await session(data.session);}catch(e){error(e);}finally{b.disabled=false;}};
  $('logout').onclick=async()=>{try{const {error:e}=await MM.client().auth.signOut();if(e)throw e;sessionId=undefined;await session(null);}catch(e){error(e);}};
