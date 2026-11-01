@@ -2,8 +2,9 @@
 import {readFileSync,writeFileSync} from 'node:fs';
 import {configuration} from './kitchen-config.mjs';
 const [url,key,flag]=process.argv.slice(2);
-if(!['--verified','--preview'].includes(flag)||process.argv.length!==5)throw Error('Для проверенной версии: node scripts/enable-kitchen.mjs HTTPS_API_URL PUBLIC_KEY --verified; тестовую копию собирайте через build-russian-preview.mjs');
-const config=configuration(url,key,flag==='--preview'?'test':'production');
+if(!['--verified','--preview','--preview-setup'].includes(flag)||process.argv.length!==5)throw Error('Для проверенной версии: node scripts/enable-kitchen.mjs HTTPS_API_URL PUBLIC_KEY --verified; тестовую копию собирайте через build-russian-preview.mjs');
+if(flag==='--preview-setup'&&(url||key))throw Error('Пустая тестовая сборка не должна содержать настройки проекта');
+const config=flag==='--preview-setup'?{enabled:false,deploymentProfile:'ru',deploymentMode:'test',supabaseUrl:'',publishableKey:'',captchaSiteKey:''}:configuration(url,key,flag==='--preview'?'test':'production');
 const put=(p,s)=>writeFileSync(p,s),read=p=>readFileSync(p,'utf8');
 let html=read('index.html');
 if(!html.includes('const ENDPOINT='))throw Error('Уже переключено или исходный файл изменён. Проверьте diff');

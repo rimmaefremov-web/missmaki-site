@@ -40,7 +40,7 @@ test('lost order response restores checkout after reload and reuses request ID',
  await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('mm-pending-submission'))).toBe(true);
  await expect(page.locator('#status')).toContainText('№42');
  const request=await page.evaluate(()=>JSON.parse(localStorage.getItem('mm-pending-submission')).requestId);
- await page.reload();await expect(page.locator('#name')).toHaveValue('Покупатель');await expect(page.locator('#cart')).toContainText('Филадельфия');await page.locator('#send').focus();await page.keyboard.press('Enter');
+ await page.reload();await page.evaluate(()=>{isOpen=()=>true;updateHours();});await expect(page.locator('#name')).toHaveValue('Покупатель');await expect(page.locator('#cart')).toContainText('Филадельфия');await page.locator('#send').focus();await page.keyboard.press('Enter');
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('mm-pending-submission'))).toBeNull();
  const calls=await page.evaluate(()=>window.__fake.calls.filter(c=>c.name==='create_order'));expect(calls[0].args.p_request).toBe(request);
 });
