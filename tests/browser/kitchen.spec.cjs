@@ -10,8 +10,8 @@ async function mock(page,{staff=false,offline=false}={}){
   const query=table=>{const filters=[];let single=false;const q={select(){return q;},eq(k,v){filters.push([k,v]);return q;},order(){return q;},limit(){return q;},range(){return q;},maybeSingle(){single=true;return q;},then(resolve,reject){const r=result(table,filters);if(single&&r.data)r.data=r.data[0]||null;return Promise.resolve(r).then(resolve,reject);}};return q;};
   window.__client={auth:{getSession:async()=>({data:{session:{user:{id:'u1'}}}}),signInAnonymously:async()=>({data:{}}),signInWithPassword:async()=>({data:{session:{user:{id:'u1'}}}}),onAuthStateChange(){},signOut:async()=>({})},from:query,channel(){const c={on(){return c;},subscribe(fn){setTimeout(()=>fn('SUBSCRIBED'),0);return c;}};return c;},removeChannel(){},async rpc(name,args){f.calls.push({name,args});if(f.offline)return {error:{message:'Нет сети'}};let data=null;if(name==='is_staff')data=f.staff;if(name==='order_status'){f.status=args.p_status;f.minutes=args.p_minutes;f.version++;}if(name==='moderate_review')f.reviewStatus=args.p_status;if(name==='public_reviews')data=f.reviewStatus==='approved'?[review()]:[];if(name==='my_reviews')data=[{...review(),status:f.reviewStatus==='approved'?'approved':'pending'}];if(name==='availability')data={ok:true,available:true};if(name==='create_order'){f.createdRequest=args.p_request;data={ok:true,number:42,id:'o1'};if(f.failOrderOnce){f.failOrderOnce=false;return {error:{message:'Ответ потерян'}};}}return {data,error:null};}};
  },{staff,offline});
- await page.route('**/shared/config.js',r=>r.fulfill({contentType:'application/javascript',body:"window.MISSMAKI_CONFIG={enabled:true,supabaseUrl:'https://test.supabase.co',publishableKey:'test-only'};"}));
- await page.route('https://cdn.jsdelivr.net/**',r=>r.fulfill({contentType:'application/javascript',body:'window.supabase={createClient:()=>window.__client};'}));
+ await page.route('**/shared/config.js',r=>r.fulfill({contentType:'application/javascript',body:"window.MISSMAKI_CONFIG={enabled:true,deploymentProfile:'ru',supabaseUrl:'https://orders.example.com',publishableKey:'test-only'};"}));
+ await page.route('**/shared/vendor/supabase.js',r=>r.fulfill({contentType:'application/javascript',body:'window.supabase={createClient:()=>window.__client};'}));
 }
 test('staff panel, every wait button, refusal and moderation',async({page})=>{
  await mock(page,{staff:true});await page.goto('/kitchen/');await expect(page.getByRole('heading',{name:/Заказ №42/})).toBeVisible();
@@ -43,4 +43,10 @@ test('lost order response restores checkout after reload and reuses request ID',
  await page.reload();await expect(page.locator('#name')).toHaveValue('Покупатель');await expect(page.locator('#cart')).toContainText('Филадельфия');await page.locator('#send').focus();await page.keyboard.press('Enter');
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('mm-pending-submission'))).toBeNull();
  const calls=await page.evaluate(()=>window.__fake.calls.filter(c=>c.name==='create_order'));expect(calls[0].args.p_request).toBe(request);
+});
+
+test('bundled SDK loads locally without a foreign CDN',async({page})=>{
+ const external=[];page.on('request',r=>{if(!r.url().startsWith('http://127.0.0.1:4173'))external.push(r.url());});
+ await page.goto('/kitchen/');await expect(page.locator('#error')).toContainText('ещё не подключена');
+ expect(await page.evaluate(()=>typeof window.supabase?.createClient)).toBe('function');expect(external).toEqual([]);
 });

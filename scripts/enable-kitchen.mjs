@@ -1,9 +1,9 @@
 // Run only AFTER acceptance tests on a separate staging copy; makes a reviewable diff.
 import {readFileSync,writeFileSync} from 'node:fs';
-const [url,key,flag,captchaSiteKey]=process.argv.slice(2);
-if(flag!=='--verified'||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url||'')||!key||key.startsWith('sb_secret_'))throw Error('После проверки: node scripts/enable-kitchen.mjs HTTPS_PROJECT_URL PUBLIC_KEY --verified');
-if(key.startsWith('eyJ')){const claims=JSON.parse(Buffer.from(key.split('.')[1],'base64url'));if(claims.role!=='anon')throw Error('Допустим только публичный anon key');}
-else if(!key.startsWith('sb_publishable_'))throw Error('Нужен publishable key или anon key');
+import {configuration} from './kitchen-config.mjs';
+const [url,key,flag]=process.argv.slice(2);
+if(!['--verified','--preview'].includes(flag)||process.argv.length!==5)throw Error('Для проверенной версии: node scripts/enable-kitchen.mjs HTTPS_API_URL PUBLIC_KEY --verified; тестовую копию собирайте через build-russian-preview.mjs');
+const config=configuration(url,key,flag==='--preview'?'test':'production');
 const put=(p,s)=>writeFileSync(p,s),read=p=>readFileSync(p,'utf8');
 let html=read('index.html');
 if(!html.includes('const ENDPOINT='))throw Error('Уже переключено или исходный файл изменён. Проверьте diff');
@@ -16,9 +16,9 @@ if(/script\.google|telegramConfirmed|customerDecision\(/.test(html.replace(/oncl
 // Existing hidden decision markup is obsolete.
 html=html.replace(/<div id="decision".*?<p id="status"/s,'<div id="decision" hidden></div><p id="status"');
 put('index.html',html);
-put('shared/config.js','// Public configuration. Never put service_role or passwords here.\nwindow.MISSMAKI_CONFIG = Object.freeze('+JSON.stringify({enabled:true,supabaseUrl:url,publishableKey:key,captchaSiteKey:captchaSiteKey||''})+');\n');
+put('shared/config.js','// Public configuration. Never put service_role or passwords here.\nwindow.MISSMAKI_CONFIG = Object.freeze('+JSON.stringify(config)+');\n');
 put('test/index.html','<!doctype html><html lang="ru"><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/"><title>MissMaki</title><a href="/">Перейти на сайт MissMaki</a></html>\n');
-let privacy=read('privacy.html').replace('В текущей технической схеме заявка направляется через Google Apps Script в рабочую Telegram-группу MissMaki. Хостинг сайта — GitHub Pages.', 'Заказы и отзывы передаются в отдельную базу данных Supabase по HTTPS. Доступ сотрудников ограничен авторизацией и ролью. Хостинг сайта — GitHub Pages.');
+let privacy=read('privacy.html').replace('В текущей технической схеме заявка направляется через Google Apps Script в рабочую Telegram-группу MissMaki. Хостинг сайта — GitHub Pages.', 'Заказы и отзывы передаются напрямую по HTTPS в Supabase на российском размещении. Сведения о провайдере, площадке, резервных копиях и сроках хранения уточняются оператором до запуска; сам этот текст их не подтверждает. Доступ сотрудников ограничен авторизацией и ролью. Хостинг сайта — GitHub Pages.');
 privacy=privacy.replace('Приём отзывов в текущей версии не подключён.','Отзывы публикуются после модерации и отдельного согласия автора.').replace('серверные записи и сообщения рабочей группы','серверные записи');put('privacy.html',privacy);
 put('data-processing.html',read('data-processing.html').replace('Приём отзывов в текущей версии сайта не подключён. Перед запуском публикации персональных данных в отзывах требуется отдельное согласие на распространение.','Отзывы публикуются после модерации при отдельном согласии автора на распространение указанного имени, оценки и текста.'));
 put('cookies.html',read('cookies.html').replace('</main>','<h2>Система кухни</h2><p>В браузере сохраняется сессия доступа к собственным заказам. При неподтверждённой отправке сохраняется черновик заказа, включая контактные данные, чтобы восстановить отправку после перезапуска; после подтверждения записи черновик удаляется. На общем устройстве очистите данные сайта после завершения заказа. Панель кухни сохраняет сессию сотрудника; на общем устройстве нажимайте «Выйти». API и персональные данные не кэшируются сервис-воркером.</p></main>'));

@@ -9,14 +9,17 @@
   try{return await fetch(url,{...init,signal:controller.signal});}
   finally{clearTimeout(timer);init.signal?.removeEventListener('abort',abort);}
  }
+ if(c?.enabled&&c.deploymentMode==='test'){document.addEventListener('DOMContentLoaded',()=>{const note=document.createElement('p');note.id='mm-test-banner';note.textContent='ТЕСТОВАЯ ВЕРСИЯ. Только вымышленные данные. Рабочий сайт не переключён.';note.style.cssText='background:#fff1b8;color:#382700;padding:12px;margin:0;font:16px/1.5 system-ui;text-align:center';document.body.prepend(note);});}
  window.MM={
   enabled:!!c?.enabled,
   client(){
    if(!c?.enabled||!/^https:\/\/[a-z0-9.-]+$/.test(c.supabaseUrl)||!c.publishableKey)throw Error('Система кухни ещё не подключена');
+   if(c.deploymentProfile==='ru'&&(/(^|\.)supabase\.co$/i.test(new URL(c.supabaseUrl).hostname)||c.captchaSiteKey))throw Error('Российский профиль: зарубежное облако и Cloudflare CAPTCHA не подключаются');
    if(!window.supabase)throw Error('Не удалось загрузить систему. Проверьте интернет');
    return client??=supabase.createClient(c.supabaseUrl,c.publishableKey,{global:{fetch:timedFetch},auth:{storageKey:location.pathname.startsWith('/kitchen')?'mm-staff':'mm-customer',persistSession:true,autoRefreshToken:true}});
   },
   async captcha(){
+   if(c.deploymentProfile==='ru'){if(c.captchaSiteKey)throw Error('Для российского профиля настройте защиту на российском сервере');return undefined;}
    if(!c.captchaSiteKey)return undefined;
    if(!window.turnstile){await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';script.onload=resolve;script.onerror=()=>reject(Error('Не удалось загрузить проверку. Повторите попытку'));document.head.append(script);});}
    return new Promise((resolve,reject)=>{
