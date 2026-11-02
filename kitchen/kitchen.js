@@ -26,7 +26,7 @@
    if(version!==queueVersion){pendingRefresh=true;return;}
    const map=new Map(o.data.map(x=>[x.id,x]));for(const x of fresh.data)map.set(x.id,x);
    orders=[...map.values()];reviews=r.data;
-   alarm.setPending(fresh.data.map(x=>x.id));
+   alarm.setPending(fresh.data.filter(x=>!x.is_test).map(x=>x.id));
    render();health(true);$('error').textContent='';
   }finally{refreshing=false;if(pendingRefresh){pendingRefresh=false;queueMicrotask(()=>refresh().catch(e=>{health(false);error(e);}));}}
  }

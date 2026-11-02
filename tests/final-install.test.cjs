@@ -32,3 +32,9 @@ test('encrypted business backup restores missing records without overwriting exi
  await role(db,admin);await db.query("select public.set_test_record('review',$1,false)",[review]);await role(db,buyer);assert.equal((await db.query('select * from public.public_reviews()')).rows.length,1);
  }finally{await db.close();}
 });
+
+test('backup preparation archives only the exact verified synthetic record',async()=>{
+ const {archiveVerifiedTests}=await import(pathToFileURL(path.resolve('kitchen/verified-tests.mjs')));const row={id:'86fcce66-7031-4d28-bebf-1b67ddfbfedb',request_id:'c5a643cf-c8fb-484e-a907-208e04d25733',name:'АВТОТЕСТ ФИНАЛ — НЕ ГОТОВИТЬ'};const calls=[];const rpc=async(name,args)=>calls.push({name,args});
+ assert.equal(await archiveVerifiedTests({orders:[{...row,id:randomUUID()}, {...row,request_id:randomUUID()},{...row,name:'Реальный заказ'}]},rpc),0);assert.equal(calls.length,0);
+ assert.equal(await archiveVerifiedTests({orders:[row]},rpc),1);assert.equal(calls[0].args.p_test,true);assert.equal(await archiveVerifiedTests({orders:[{...row,is_test:true}]},rpc),0);assert.equal(calls.length,1);
+});
