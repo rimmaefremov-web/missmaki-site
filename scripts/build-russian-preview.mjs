@@ -33,6 +33,7 @@ try{
  }
  rmSync(join(temp,'scripts'),{recursive:true});
  writeFileSync(join(temp,'robots.txt'),'User-agent: *\nDisallow: /\n');
+ const backup=join(temp,'kitchen/backup.html');writeFileSync(backup,readFileSync(backup,'utf8').replace('<script src="../shared/config.js" defer></script>','<script src="../shared/config.js" defer></script><script src="../shared/preview-settings.js" defer></script>'));
  // No CNAME, repository metadata, tests, secrets or live provider credentials are exported.
  renameSync(temp,out);
  console.log('Тестовая статическая копия подготовлена: '+out+'. Не опубликована; DNS не изменён.');

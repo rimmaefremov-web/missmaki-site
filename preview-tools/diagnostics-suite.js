@@ -19,7 +19,7 @@
     for(let n=810;n<=1380;n+=30){const candidate=String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');if(ok(await a.client.rpc('availability',{p_date:date,p_time:candidate})).available){time=candidate;break;}}
     must(time,'Завтра нет свободного тестового слота');request=crypto.randomUUID();
     payload={name:'АВТОТЕСТ MissMaki',phone:'+70000000000',address:'ТЕСТ: самовывоз',area:'Самовывоз',fulfillment:'pickup',timing:'preorder',requestedDate:date,requestedTime:time,items:[{sku:'5:0',name:'Филадельфия — Классическая',quantity:1,price:470}],subtotal:470,delivery:0,total:470,comment:'АВТОТЕСТ '+request+' — НЕ ГОТОВИТЬ',birthdayGift:false};
-    const r=ok(await a.client.rpc('create_order',{p_request:request,p:payload}));must(r?.ok&&r.id,'Создание не подтверждено');orderId=r.id;await read();
+    const r=ok(await a.client.rpc('create_order',{p_request:request,p:payload}));must(r?.ok&&r.id,'Создание не подтверждено');orderId=r.id;const marked=await staff.rpc('set_test_record',{p_entity:'order',p_id:orderId,p_test:true});if(marked.error&&marked.error.code!=='PGRST202')throw marked.error;report.testFlagApplied=!marked.error;await read();
    });
    await step('Повтор запроса не создаёт дубликат',async()=>{const r=ok(await a.client.rpc('create_order',{p_request:request,p:payload}));must(r.id===orderId,'Повтор создал другую запись');const rows=ok(await a.client.from('orders').select('id').eq('request_id',request));must(rows.length===1,'Неверное количество записей');});
    await step('Чужой покупатель не читает заказ',async()=>{const rows=ok(await b.client.from('orders').select('id').eq('id',orderId));must(rows.length===0,'Чужой заказ доступен');});

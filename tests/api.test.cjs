@@ -30,3 +30,9 @@ test('admin guest diagnostics use isolated anonymous SDK clients and never staff
  const {api}=load(staff,{crypto:globalThis.crypto,navigator:{locks:null},supabase:{createClient(_u,_k,opts){return opts.auth.storageKey.startsWith('mm-guest-probe-')?guest:staff;}}});
  api.solve=async()=> 'fixture-proof';const a=await api.sandboxGuest(),b=await api.sandboxGuest();assert.notEqual(a.guestRecord().token,b.guestRecord().token);assert.equal(api.client(),staff);assert.equal(a.client(),guest);assert.equal(api.guestRecord(),null);assert.equal(await api.hasCustomer(),true);assert.deepEqual(calls,['guest_challenge','guest_session','guest_challenge','guest_session']);
 });
+
+test('anonymous Auth uses server proof and a required missing guard fails closed',async()=>{
+ let signed;
+ const client={rpc:async()=>({data:{bits:18,seal:'a'.repeat(64),nonce:'fixture',expires:1}}),auth:{signInAnonymously:async options=>{signed=options;return {data:{}};}}};const {api}=load(client);api.solve=async challenge=>{assert.equal(challenge.bits,18);return '123';};await api.signInAnonymous(client);assert.equal(signed.options.data.mm_proof.solution,'123');assert.equal(signed.options.data.mm_proof.challenge.nonce,'fixture');
+ const window={MISSMAKI_CONFIG:{enabled:true,supabaseUrl:'https://orders.example.com',publishableKey:'TEST_FIXTURE_ONLY',authProofRequired:true}};let calls=0;const missing={rpc:async()=>({data:null,error:{code:'PGRST202'}}),auth:{signInAnonymously:async()=>{calls++;}}};load(missing,{window});await assert.rejects(window.MM.signInAnonymous(missing),/защита ещё не установлена/);assert.equal(calls,0);
+});

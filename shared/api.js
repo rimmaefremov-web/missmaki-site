@@ -30,7 +30,14 @@
     widget=turnstile.render(target,{sitekey:c.captchaSiteKey,callback:token=>finish(null,token),'error-callback':()=>finish(Error('Не удалось пройти проверку')),'expired-callback':()=>finish(Error('Проверка истекла. Повторите попытку'))});
    });
   },
-  async customer(){if(this._signing)return this._signing;this._signing=(async()=>{const s=this.client();if(this.databaseGuest()){if(navigator.locks)await navigator.locks.request('mm-guest-session',()=>this.ensureGuest());else await this.ensureGuest();return s;}const {data,error}=await s.auth.getSession();if(error)throw error;if(!data.session){const r=await s.auth.signInAnonymously({options:{captchaToken:await this.captcha()}});if(r.error){if((r.error.code==='anonymous_provider_disabled'||/anonymous sign-ins are disabled/i.test(r.error.message||'')))throw Error('Приём тестовых заказов пока недоступен: в базе отключён анонимный вход покупателей. Заказ не отправлен.');throw r.error;}}return s;})();try{return await this._signing;}finally{this._signing=null;}},
+  async customer(){if(this._signing)return this._signing;this._signing=(async()=>{const s=this.client();if(this.databaseGuest()){if(navigator.locks)await navigator.locks.request('mm-guest-session',()=>this.ensureGuest());else await this.ensureGuest();return s;}const {data,error}=await s.auth.getSession();if(error)throw error;if(!data.session){const r=await this.signInAnonymous(s);if(r.error){if((r.error.code==='anonymous_provider_disabled'||/anonymous sign-ins are disabled/i.test(r.error.message||'')))throw Error('Приём тестовых заказов пока недоступен: в базе отключён анонимный вход покупателей. Заказ не отправлен.');throw r.error;}}return s;})();try{return await this._signing;}finally{this._signing=null;}},
+  async signInAnonymous(s){
+   const r=typeof s.rpc==='function'?await s.rpc('auth_signup_challenge',{}):{data:null,error:{code:'PGRST202'}};
+   if(r.error&&r.error.code!=='PGRST202')throw Error('Не удалось проверить вход. Попробуйте позже.');
+   if(!r.data){if(c.authProofRequired)throw Error('Серверная защита ещё не установлена. Заказ не отправлен.');return s.auth.signInAnonymously({options:{captchaToken:await this.captcha()}});}
+   const solution=await this.solve(r.data);
+   return s.auth.signInAnonymously({options:{data:{mm_proof:{challenge:r.data,solution}}}});
+  },
     databaseGuest(){return c?.guestMode==='database-token'&&!location.pathname.startsWith('/kitchen');},
   guestRecord(){try{const r=JSON.parse(localStorage.getItem('mm-guest-session'));return r?.project===c.supabaseUrl&&/^[a-f0-9]{64}$/.test(r?.token)?r:null;}catch{return null;}},
   storeGuest(record){localStorage.setItem('mm-guest-session',JSON.stringify({...record,project:c.supabaseUrl}));},
