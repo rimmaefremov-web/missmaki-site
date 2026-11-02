@@ -22,7 +22,7 @@ try{
  mkdirSync(join(temp,'setup'));
  for(const name of ['setup.html','setup.js'])copyFileSync(join(root,'preview-tools',name),join(temp,'setup',name==='setup.html'?'index.html':name));
  copyFileSync(join(root,'preview-tools/settings.js'),join(temp,'shared/preview-settings.js'));
- for(const name of ['diagnostics.html','diagnostics.js','diagnostics-suite.js','guest-diagnostics-suite.js'])copyFileSync(join(root,'preview-tools',name),join(temp,'kitchen',name));
+ for(const name of ['diagnostics.html','diagnostics.js','diagnostics-suite.js','guest-diagnostics-suite.js','access.html','access.js'])copyFileSync(join(root,'preview-tools',name),join(temp,'kitchen',name));
  for(const [name,prefix] of [['index.html','shared/'],['kitchen/index.html','../shared/']]){
   const file=join(temp,name);let html=readFileSync(file,'utf8');
   const configTag='<script src="'+prefix+'config.js"'+(name.startsWith('kitchen')?' defer':'')+'></script>';
