@@ -1,16 +1,20 @@
 /* Loaded after the existing site script. Only enabled configuration changes transport. */
 if(window.MM?.enabled){
  const originalCheckout=checkout;
- let stopWatching;
+ let stopWatching,lastSubmissionError;
  submit=async order=>{
+  lastSubmissionError=null;
   await MM.customer();
   const {requestId,origin,...payload}=order;
   localStorage.setItem('mm-pending-submission',JSON.stringify({requestId,payload}));
   localStorage.setItem('missmaki-active-order',requestId);
   watchOrder(requestId);
+  try{
   const result=await MM.rpc('create_order',{p_request:requestId,p:payload});
+  if(result?.ok!==true||typeof result.id!=='string'||!result.id||!Number.isSafeInteger(Number(result.number))||Number(result.number)<1)throw Error('Сервер не подтвердил сохранение заказа. Повторите отправку с прежней корзиной.');
   localStorage.removeItem('mm-pending-submission');
   return result;
+  }catch(e){lastSubmissionError=e.message||'Проверьте интернет';throw e;}
  };
  jsonpGet=async params=>{await MM.customer();return MM.rpc('availability',{p_date:params.date,p_time:params.time});};
  checkout=async()=>{try{await MM.customer();await originalCheckout();}catch(e){document.getElementById('status').textContent=e.message||'Нет соединения. Повторите отправку с тем же заказом.';}};
@@ -20,7 +24,7 @@ if(window.MM?.enabled){
   stopWatching?.();
   stopWatching=MM.subscribe(async()=>{
    const data=await MM.order(id);
-   if(!data){document.getElementById('status').textContent='Заказ пока не найден в базе. Если отправка завершилась ошибкой, повторите с той же корзиной.';return;}
+   if(!data){document.getElementById('status').textContent=lastSubmissionError?'Не удалось подтвердить отправку. '+lastSubmissionError+' Повторите с той же корзиной.':'Заказ пока не найден в базе. Если отправка завершилась ошибкой, повторите с той же корзиной.';return;}
    const msg=data.status==='accepted'?`Ваш заказ №${data.number} принят! Время ожидания — ${data.minutes} минут`:data.status==='rejected'?'К сожалению, сейчас мы не можем принять ваш заказ':data.status==='completed'?`Заказ №${data.number} выполнен`:`Заказ №${data.number} отправлен. Ожидаем подтверждения MissMaki…`;
    document.getElementById('status').textContent=msg;
    document.getElementById('payment-info').hidden=false;

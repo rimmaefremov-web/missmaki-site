@@ -1,0 +1,20 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const {PGlite}=require('@electric-sql/pglite');
+test('global submission budgets span identities, preserve retries and cannot be bypassed by public roles',async()=>{
+ const db=new PGlite();try{
+ await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;grant execute on function auth.uid() to authenticated,anon;create publication supabase_realtime;");
+ for(const file of ['001_kitchen.sql','002_catalog.sql','004_review_moderation_idempotency.sql','005_submission_budgets.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
+ const day=(await db.query("select ((now() at time zone 'Europe/Moscow')::date+1)::text as d")).rows[0].d;let first;
+ async function asUser(i){await db.exec('reset role');const id='11111111-1111-4111-8111-'+String(i).padStart(12,'0');await db.query('insert into auth.users values($1)',[id]);await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');}
+ async function order(i){const request=crypto.randomUUID(),payload={name:'ТЕСТ',phone:'+70000000000',fulfillment:'pickup',area:'Самовывоз',timing:'preorder',requestedDate:day,requestedTime:String(14+Math.floor(i/2)).padStart(2,'0')+':'+(i%2?'30':'00'),items:[{sku:'5:0',quantity:1}],subtotal:470,delivery:0,total:470};return {request,payload};}
+ for(let i=0;i<10;i++){await asUser(i+1);const p=await order(i);const result=(await db.query('select public.create_order($1,$2) as r',[p.request,p.payload])).rows[0].r;if(i===0)first={...p,id:result.id};}
+ await asUser(11);const p=await order(10);await assert.rejects(db.query('select public.create_order($1,$2)',[p.request,p.payload]),/Слишком много заявок/);
+ await db.exec('reset role');assert.equal((await db.query('select count(*)::int as n from public.orders')).rows[0].n,10);
+ await db.query("select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-000000000001',false)");await db.exec('set role authenticated');assert.equal((await db.query('select public.create_order($1,$2) as r',[first.request,first.payload])).rows[0].r.id,first.id);
+ await assert.rejects(db.query('select * from missmaki_guard.submission_budgets'),/permission denied/);await assert.rejects(db.query("select missmaki_guard.consume('orders-minute',100000,1)"),/permission denied/);
+ for(let i=0;i<5;i++){await asUser(20+i);await db.query("select public.submit_review($1,'Автор',5,'Тест',true)",[crypto.randomUUID()]);}
+ await asUser(25);await assert.rejects(db.query("select public.submit_review($1,'Автор',5,'Тест',true)",[crypto.randomUUID()]),/Слишком много заявок/);
+ await db.exec('reset role');const before=(await db.query('select * from missmaki_guard.submission_budgets order by name')).rows;await db.exec(fs.readFileSync('supabase/migrations/005_submission_budgets.sql','utf8'));assert.deepEqual((await db.query('select * from missmaki_guard.submission_budgets order by name')).rows,before);
+ await db.query("update missmaki_guard.submission_budgets set window_end=now()-interval '1 second' where name='orders-minute'");await db.query("select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-000000000011',false)");await db.exec('set role authenticated');await db.query('select public.create_order($1,$2)',[p.request,p.payload]);
+ await db.exec('reset role');await db.query("update missmaki_guard.submission_budgets set n=200 where name='orders-day'");await db.query("select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-000000000011',false)");await db.exec('set role authenticated');const next=await order(11);await assert.rejects(db.query('select public.create_order($1,$2)',[next.request,next.payload]),/Слишком много заявок/);
+ }finally{await db.close();}
+});
