@@ -7,7 +7,7 @@ import {execFileSync} from 'node:child_process';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');const temporary=mkdtempSync(join(tmpdir(),'mm-static-'));
 try{
  const output=join(temporary,'site');
- execFileSync(process.execPath,[join(root,'scripts/build-russian-preview.mjs'),'--setup','--database-guests','--output',output],{cwd:root,stdio:'pipe'});
+ execFileSync(process.execPath,[join(root,'scripts/build-russian-preview.mjs'),'--setup','--output',output],{cwd:root,stdio:'pipe'});
  const destination=join(root,'dist-preview');rmSync(destination,{recursive:true,force:true});cpSync(output,destination,{recursive:true});
  console.log('Готова только статическая тестовая копия: dist-preview. Настройки базы вводятся на /setup/. Публикация и DNS не изменены.');
 }finally{rmSync(temporary,{recursive:true,force:true});}

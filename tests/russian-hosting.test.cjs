@@ -12,7 +12,7 @@ test('preview export is isolated, contains no old transport or repository secret
  const files=['index.html','shared/config.js','privacy.html','test/index.html'];const before=files.map(f=>fs.readFileSync(f));
  try{
   execFileSync(process.execPath,['scripts/build-russian-preview.mjs','https://orders.example.com',fixtureKey,'--output',out]);
-  const sandbox={window:{}};vm.runInNewContext(fs.readFileSync(path.join(out,'shared/config.js'),'utf8'),sandbox);const c=sandbox.window.MISSMAKI_CONFIG;assert.equal(c.enabled,true);assert.equal(c.deploymentMode,'test');assert.equal(c.deploymentProfile,'ru');assert.equal(c.captchaSiteKey,'');
+  const sandbox={window:{}};vm.runInNewContext(fs.readFileSync(path.join(out,'shared/config.js'),'utf8'),sandbox);const c=sandbox.window.MISSMAKI_CONFIG;assert.equal(c.enabled,true);assert.equal(c.deploymentMode,'test');assert.equal(c.deploymentProfile,'ru');assert.equal(c.guestMode,'supabase-anonymous');assert.equal(c.captchaSiteKey,'');
   const html=fs.readFileSync(path.join(out,'index.html'),'utf8');assert(!/script\.google|telegramConfirmed|cdn\.jsdelivr/.test(html));assert(html.includes('shared/vendor/supabase.js'));assert(!/cdn\.jsdelivr/.test(fs.readFileSync(path.join(out,'kitchen/index.html'),'utf8')));
   for(const f of ['.git','.env','CNAME','scripts','tests','node_modules','supabase'])assert(!fs.existsSync(path.join(out,f)),f);
   assert(fs.existsSync(path.join(out,'kitchen/index.html')));assert(fs.existsSync(path.join(out,'assets/missmaki-logo-small.webp')));

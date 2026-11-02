@@ -8,7 +8,7 @@
   key=key.trim();let valid=/^sb_publishable_[A-Za-z0-9_-]{8,}$/.test(key);
   if(key.startsWith('eyJ')){try{const parts=key.split('.');const claims=JSON.parse(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')));valid=parts.length===3&&parts.every(Boolean)&&claims.role==='anon';}catch{valid=false;}}
   if(!valid||key.length>8192)throw Error('Допустим только публичный anon / publishable key. Пароль и service_role сюда не вставляют');
-  return {enabled:true,deploymentProfile:'ru',deploymentMode:'test',supabaseUrl:u.origin,publishableKey:key,captchaSiteKey:'',...(window.MISSMAKI_CONFIG?.guestMode==='database-token'?{guestMode:'database-token'}:{})};
+  return {enabled:true,deploymentProfile:'ru',deploymentMode:'test',supabaseUrl:u.origin,publishableKey:key,captchaSiteKey:'',...(window.MISSMAKI_CONFIG?.guestMode?{guestMode:window.MISSMAKI_CONFIG.guestMode}:{})};
  }
  window.MMPreviewSettings={allowed,validate,save(url,value){if(!allowed())throw Error('Настройка разрешена только в отдельной HTTPS тестовой копии');const c=validate(url,value);const old=window.MISSMAKI_CONFIG;if(old?.supabaseUrl!==c.supabaseUrl||old?.publishableKey!==c.publishableKey){for(const k of ['mm-staff','mm-customer','mm-staff-code-verifier','mm-customer-code-verifier','missmaki-active-order','mm-pending-submission','mm-guest-session'])localStorage.removeItem(k);}
  localStorage.setItem(key,JSON.stringify(c));return c;},clear(){localStorage.removeItem(key);}};

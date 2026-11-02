@@ -18,7 +18,7 @@ try{
  mkdirSync(join(temp,'test'));copyFileSync(join(root,'test/index.html'),join(temp,'test/index.html'));
  mkdirSync(join(temp,'scripts'));for(const name of ['enable-kitchen.mjs','kitchen-config.mjs'])copyFileSync(join(root,'scripts',name),join(temp,'scripts',name));
  execFileSync(process.execPath,['scripts/enable-kitchen.mjs',setup?'':url,setup?'':key,setup?'--preview-setup':'--preview'],{cwd:temp,stdio:'pipe'});
- if(databaseGuest){const file=join(temp,'shared/config.js');let text=readFileSync(file,'utf8');if(!text.includes('"deploymentMode":"test"'))throw Error('Ожидалась тестовая конфигурация');text=text.replace('"deploymentMode":"test"','"deploymentMode":"test","guestMode":"database-token"');writeFileSync(file,text);}
+ {const file=join(temp,'shared/config.js');let text=readFileSync(file,'utf8');if(!text.includes('"deploymentMode":"test"'))throw Error('Ожидалась тестовая конфигурация');text=text.replace('"deploymentMode":"test"','"deploymentMode":"test","guestMode":'+JSON.stringify(databaseGuest?'database-token':'supabase-anonymous'));writeFileSync(file,text);}
  mkdirSync(join(temp,'setup'));
  for(const name of ['setup.html','setup.js'])copyFileSync(join(root,'preview-tools',name),join(temp,'setup',name==='setup.html'?'index.html':name));
  copyFileSync(join(root,'preview-tools/settings.js'),join(temp,'shared/preview-settings.js'));
