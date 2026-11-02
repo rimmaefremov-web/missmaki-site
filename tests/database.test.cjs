@@ -14,6 +14,7 @@ before(async()=>{
  await db.exec(`create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to authenticated,anon;grant execute on function auth.uid() to authenticated,anon;create publication supabase_realtime;`);
  await db.exec(fs.readFileSync('supabase/migrations/001_kitchen.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/002_catalog.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/004_review_moderation_idempotency.sql','utf8'));
  await query('insert into auth.users values($1),($2),($3)',[A,B,S]);await query("insert into public.staff values($1,'admin')",[S]);
  const d=(await query("select ((now() at time zone 'Europe/Moscow')::date+1)::text as d")).rows[0].d;
  payload={name:'Тест',phone:'+7 (953) 000-00-00',address:'Тестовый адрес',area:'Южный',fulfillment:'delivery',timing:'preorder',requestedDate:d,requestedTime:'14:00',items:[{sku:'5:0',quantity:2,price:470}],subtotal:940,delivery:200,total:1140,comment:'Тест'};
@@ -85,4 +86,22 @@ test('anon has no personal data access; PUBLIC cannot invoke privileged function
 });
 test('catalog stays exactly aligned with existing website',()=>{
  const actual=JSON.parse(require('node:child_process').execFileSync(process.execPath,['scripts/extract-catalog.cjs'],{encoding:'utf8'}));assert.deepEqual(actual,JSON.parse(fs.readFileSync('supabase/catalog.json','utf8')));
+});
+
+test('moderation retries do not change version or audit; deliberate reversal and stale version remain protected',async()=>{
+ await who(A);const id=(await rpc("select public.submit_review($1,'Автор',5,'Повторная модерация',true) as id",[uuid()])).id;
+ await who(S);await query("select public.moderate_review($1,'rejected',1)",[id]);
+ const snapshot=async()=>({review:(await query('select status,version from public.reviews where id=$1',[id])).rows[0],audit:(await query('select * from public.audit where entity_id=$1 order by id',[id])).rows});
+ const rejected=await snapshot();
+ await query("select public.moderate_review($1,'rejected',1)",[id]);await query("select public.moderate_review($1,'rejected',2)",[id]);assert.deepEqual(await snapshot(),rejected);
+ await assert.rejects(query("select public.moderate_review($1,'approved',1)",[id]),/уже изменён/);
+ await assert.rejects(query("select public.moderate_review($1,'approved',null)",[id]),/уже изменён/);
+ await who(B);assert(!(await query('select * from public.public_reviews()')).rows.some(x=>x.id===id));
+ await who(A);assert.equal((await query('select * from public.my_reviews()')).rows.find(x=>x.id===id).status,'pending');
+ await assert.rejects(query("select public.moderate_review($1,'rejected',2)",[id]),/Доступ запрещён/);
+ await who(S);await query("select public.moderate_review($1,'approved',2)",[id]);await query("select public.moderate_review($1,'approved',2)",[id]);
+ assert.equal((await snapshot()).review.version,3);assert.equal((await snapshot()).audit.length,3);
+ await who(B);assert((await query('select * from public.public_reviews()')).rows.some(x=>x.id===id));
+ await who(S);await query("select public.moderate_review($1,'rejected',3)",[id]);assert.equal((await snapshot()).audit.length,4);
+ await db.exec('reset role');await db.exec(fs.readFileSync('supabase/migrations/004_review_moderation_idempotency.sql','utf8'));await who(S);assert.equal((await snapshot()).audit.length,4);
 });

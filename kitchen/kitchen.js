@@ -6,8 +6,8 @@
  const error=e=>{$('error').textContent=e?.message||String(e);};
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const health=ok=>{const n=$('connection');n.textContent=ok?'Соединение есть · '+new Date().toLocaleTimeString('ru-RU'):'Нет соединения. Новые заказы невозможно получить. Проверяем повторно…';n.className=ok?'online':'warning';};
- function beep(){if(!audio||audio.state!=='running')return;const o=audio.createOscillator(),g=audio.createGain();o.connect(g);g.connect(audio.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(audio.currentTime+.45);}
- $('sound').onclick=async()=>{try{audio??=new(window.AudioContext||window.webkitAudioContext)();await audio.resume();beep();$('sound').textContent='Звук включён · проверить';}catch(e){error(Error('Браузер не разрешил звук. Держите заказы на экране.'));}};
+ function beep(){if(!audio||audio.state!=='running')return;try{const o=audio.createOscillator(),g=audio.createGain();o.connect(g);g.connect(audio.destination);o.frequency.value=880;g.gain.value=.15;o.onended=()=>{o.disconnect();g.disconnect();};o.start();o.stop(audio.currentTime+.45);}catch{$('sound').textContent='Звук недоступен · проверить';}}
+ $('sound').onclick=async()=>{try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.onstatechange=()=>{$('sound').textContent=audio.state==='running'?'Звук включён · проверить':'Звук приостановлен · включить';};await audio.resume();beep();$('sound').textContent='Звук включён · проверить';}catch(e){error(Error('Браузер не разрешил звук. Держите заказы на экране.'));}};
  setInterval(()=>{if(authorized&&orders.some(o=>o.status==='new'))beep();},30000);
  async function refresh(){
   if(refreshing){pendingRefresh=true;return;}refreshing=true;const epoch=sessionEpoch;
@@ -25,7 +25,7 @@
    render();health(true);$('error').textContent='';
   }finally{refreshing=false;if(pendingRefresh){pendingRefresh=false;queueMicrotask(()=>refresh().catch(e=>{health(false);error(e);}));}}
  }
- function button(text,fn,cls){const b=el('button',text,cls);b.disabled=mutation;b.onclick=()=>act(fn);return b;}
+ function button(text,fn,cls,disabled=false){const b=el('button',text,cls);b.disabled=mutation||disabled;b.onclick=()=>act(fn);return b;}
  async function act(fn){if(mutation)return;mutation=true;render();try{await fn();await refresh();}catch(e){error(e);}finally{mutation=false;render();}}
  function render(){
   const key=JSON.stringify({tab,limit,orders,reviews,mutation});if(key===renderedKey)return;renderedKey=key;
@@ -47,7 +47,7 @@
     if(r.minutes)card.append(el('strong',`Ожидание ${r.minutes} минут`));
    }
    const actions=el('div',undefined,'actions');
-   if(review){for(const [status,label] of [['approved','ПРИНЯТЬ'],['rejected','ОТКЛОНИТЬ']])actions.append(button(label,()=>MM.rpc('moderate_review',{p_id:r.id,p_status:status,p_version:r.version}),status==='rejected'?'reject':''));}
+   if(review){for(const [status,label] of [['approved','ПРИНЯТЬ'],['rejected','ОТКЛОНИТЬ']])actions.append(button(label,async()=>{if(r.status===status)return;if(r.status!=='pending'&&!window.confirm(`Изменить решение: ${labels[r.status]} → ${labels[status]}?`))return;await MM.rpc('moderate_review',{p_id:r.id,p_status:status,p_version:r.version});},status==='rejected'?'reject':'',r.status===status));}
    else{
     for(const m of times)actions.append(button(m+' минут',()=>MM.rpc('order_status',{p_id:r.id,p_status:'accepted',p_minutes:m,p_version:r.version})));
     actions.append(button('ОТКАЗ',()=>MM.rpc('order_status',{p_id:r.id,p_status:'rejected',p_minutes:null,p_version:r.version}),'reject'));
