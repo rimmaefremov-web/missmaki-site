@@ -2,26 +2,31 @@
 (()=>{
  const $=id=>document.getElementById(id),times=[15,30,45,60,90,120,150,180];
  const labels={new:'Новый',accepted:'Принят',rejected:'Отклонён',completed:'Выполнен',pending:'Ожидает модерации',approved:'Опубликован'};
- let tab='new',limit=100,orders=[],reviews=[],stop,sessionId,refreshing=false,pendingRefresh=false,seen=new Set(),audio,authorized=false,mutation=false,renderedKey='',sessionEpoch=0;
+ let tab='new',limit=100,orders=[],reviews=[],stop,sessionId,refreshing=false,pendingRefresh=false,queueVersion=0,authorized=false,mutation=false,renderedKey='',sessionEpoch=0;
  const error=e=>{$('error').textContent=e?.message||String(e);};
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const health=ok=>{const n=$('connection');n.textContent=ok?'Соединение есть · '+new Date().toLocaleTimeString('ru-RU'):'Нет соединения. Новые заказы невозможно получить. Проверяем повторно…';n.className=ok?'online':'warning';};
- function beep(){if(!audio||audio.state!=='running')return;try{const o=audio.createOscillator(),g=audio.createGain();o.connect(g);g.connect(audio.destination);o.frequency.value=880;g.gain.value=.15;o.onended=()=>{o.disconnect();g.disconnect();};o.start();o.stop(audio.currentTime+.45);}catch{$('sound').textContent='Звук недоступен · проверить';}}
- $('sound').onclick=async()=>{try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.onstatechange=()=>{$('sound').textContent=audio.state==='running'?'Звук включён · проверить':'Звук приостановлен · включить';};await audio.resume();beep();$('sound').textContent='Звук включён · проверить';}catch(e){error(Error('Браузер не разрешил звук. Держите заказы на экране.'));}};
- setInterval(()=>{if(authorized&&orders.some(o=>o.status==='new'))beep();},30000);
+ const alarm=new window.MMKitchenAlarm({button:$('sound'),signal:$('alarm-signal'),volume:$('alarm-volume'),output:$('alarm-volume-value'),status:$('alarm-status')});
+ async function changeOrder(r,status,minutes){
+  await MM.rpc('order_status',{p_id:r.id,p_status:status,p_minutes:minutes,p_version:r.version});
+  // Only a successful server response clears this order, even if the subsequent read fails.
+  queueVersion++;orders=orders.map(o=>o.id===r.id?{...o,status,minutes,version:o.version+1}:o);
+  if(status!=='new')alarm.resolved(r.id);
+ }
  async function refresh(){
-  if(refreshing){pendingRefresh=true;return;}refreshing=true;const epoch=sessionEpoch;
+  if(refreshing){pendingRefresh=true;return;}refreshing=true;const epoch=sessionEpoch,version=queueVersion;
   try{
-   const s=MM.client();const staff=await MM.rpc('is_staff');if(!staff){authorized=false;orders=[];reviews=[];$('cards').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;throw Error('Нет прав сотрудника. Обратитесь к владельцу');}
+   const s=MM.client();const staff=await MM.rpc('is_staff');if(!staff){authorized=false;orders=[];reviews=[];alarm.setPending([]);$('cards').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;throw Error('Нет прав сотрудника. Обратитесь к владельцу');}
    async function pages(make,n){const data=[];for(let start=0;start<n;start+=500){const part=await make().range(start,Math.min(start+499,n-1));if(part.error)return part;data.push(...part.data);if(part.data.length<Math.min(500,n-start))break;}return {data,error:null};}
    const [o,r]=await Promise.all([pages(()=>{let q=s.from('orders').select('*').order('created_at',{ascending:false}).order('id');if(['accepted','rejected'].includes(tab))q=q.eq('status',tab);return q;},tab==='new'?100:limit),pages(()=>s.from('reviews').select('id,name,rating,body,created_at,status,version').order('created_at',{ascending:false}).order('id'),tab==='reviews'?limit:100)]);
    if(o.error)throw o.error;if(r.error)throw r.error;
    // Always query new orders separately: old unconfirmed orders must not disappear behind history.
    const fresh={data:[]};let offset=0;while(true){const part=await s.from('orders').select('*').eq('status','new').order('created_at').order('id').range(offset,offset+499);if(part.error)throw part.error;fresh.data.push(...part.data);if(part.data.length<500)break;offset+=500;}
    if(!authorized||epoch!==sessionEpoch)return;
+   if(version!==queueVersion){pendingRefresh=true;return;}
    const map=new Map(o.data.map(x=>[x.id,x]));for(const x of fresh.data)map.set(x.id,x);
    orders=[...map.values()];reviews=r.data;
-   if(fresh.data.some(x=>!seen.has(x.id)))beep();seen=new Set(fresh.data.map(x=>x.id));
+   alarm.setPending(fresh.data.map(x=>x.id));
    render();health(true);$('error').textContent='';
   }finally{refreshing=false;if(pendingRefresh){pendingRefresh=false;queueMicrotask(()=>refresh().catch(e=>{health(false);error(e);}));}}
  }
@@ -49,16 +54,16 @@
    const actions=el('div',undefined,'actions');
    if(review){for(const [status,label] of [['approved','ПРИНЯТЬ'],['rejected','ОТКЛОНИТЬ']])actions.append(button(label,async()=>{if(r.status===status)return;if(r.status!=='pending'&&!window.confirm(`Изменить решение: ${labels[r.status]} → ${labels[status]}?`))return;await MM.rpc('moderate_review',{p_id:r.id,p_status:status,p_version:r.version});},status==='rejected'?'reject':'',r.status===status));}
    else{
-    for(const m of times)actions.append(button(m+' минут',()=>MM.rpc('order_status',{p_id:r.id,p_status:'accepted',p_minutes:m,p_version:r.version})));
-    actions.append(button('ОТКАЗ',()=>MM.rpc('order_status',{p_id:r.id,p_status:'rejected',p_minutes:null,p_version:r.version}),'reject'));
-    for(const [status,label] of [['completed','Выполнен'],['new','Вернуть в новые']])actions.append(button(label,()=>MM.rpc('order_status',{p_id:r.id,p_status:status,p_minutes:null,p_version:r.version})));
+    for(const m of times)actions.append(button(m+' минут',()=>changeOrder(r,'accepted',m)));
+    actions.append(button('ОТКАЗ',()=>changeOrder(r,'rejected',null),'reject'));
+    for(const [status,label] of [['completed','Выполнен'],['new','Вернуть в новые']])actions.append(button(label,()=>changeOrder(r,status,null)));
    }
    card.append(actions);
    const audit=el('details');audit.append(el('summary','История изменений'));const log=el('p','Нажмите, чтобы загрузить','audit');audit.append(log);audit.addEventListener('toggle',async()=>{if(!audit.open)return;try{const {data,error:e}=await MM.client().from('audit').select('created_at,old_status,new_status,minutes').eq('entity_id',r.id).order('created_at');if(e)throw e;log.textContent=data.map(x=>`${new Date(x.created_at).toLocaleString('ru-RU')}: ${labels[x.old_status]||'Создан'} → ${labels[x.new_status]||x.new_status}${x.minutes?' · '+x.minutes+' мин':''}`).join('\n');}catch(e){log.textContent=e.message;}});card.append(audit);cards.append(card);
   }
  }
  async function session(session){
-  const id=session?.user.id;if(id===sessionId&&authorized)return;const epoch=++sessionEpoch;sessionId=id;stop?.();authorized=false;orders=[];reviews=[];seen.clear();$('cards').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;
+  const id=session?.user.id;if(id===sessionId&&authorized)return;const epoch=++sessionEpoch;sessionId=id;stop?.();authorized=false;orders=[];reviews=[];alarm.setPending([]);$('cards').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;
   if(!session){health(false);return;}
   try{const member=await MM.rpc('is_staff');if(epoch!==sessionEpoch)return;if(!member)throw Error('Доступ только для сотрудников. Обратитесь к владельцу');authorized=true;$('workspace').hidden=false;$('login').hidden=true;stop=MM.subscribe(refresh,(ok,e)=>{health(ok);if(e)error(e);});}catch(e){error(e);}
  }
@@ -68,7 +73,7 @@
  $('more').onclick=()=>{limit+=100;refresh().catch(error);};
  document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.tab;limit=100;render();refresh().catch(error);});
  window.addEventListener('offline',()=>health(false));
- window.addEventListener('online',async()=>{try{const {data}=await MM.client().auth.getSession();await session(data.session);}catch(e){error(e);}});
- document.addEventListener('visibilitychange',()=>{if(document.hidden){$('connection').className='warning';$('connection').textContent='Панель свёрнута: получение заказов и звук могут приостановиться.';}});
+ window.addEventListener('online',async()=>{alarm.recover();try{const {data}=await MM.client().auth.getSession();await session(data.session);}catch(e){error(e);}});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)alarm.recover();if(document.hidden){$('connection').className='warning';$('connection').textContent='Панель свёрнута: получение заказов и звук могут приостановиться.';}});
  (async()=>{try{const s=MM.client();s.auth.onAuthStateChange((_event,sess)=>{setTimeout(()=>session(sess),0);});const {data,error:e}=await s.auth.getSession();if(e)throw e;await session(data.session);}catch(e){error(e);}if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js',{scope:'/kitchen/'}).catch(()=>{});})();
 })();
