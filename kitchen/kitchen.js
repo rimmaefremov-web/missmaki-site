@@ -47,6 +47,7 @@
    else{
     card.append(el('p',r.name));const tel=el('a',r.phone);tel.href='tel:'+r.phone.replace(/[^+\d]/g,'');card.append(tel);
     card.append(el('p',(r.fulfillment==='pickup'?'Самовывоз':'Доставка: '+r.area)+' · '+r.address));
+    if(r.pickup_number)card.append(el('strong',`📦 Ячейка самовывоза: №${r.pickup_number}`));
     if(r.timing==='preorder')card.append(el('p',`Предзаказ: ${r.requested_date} к ${r.requested_time}`));
     for(const i of r.items)card.append(el('p',`${i.name} × ${i.quantity} · ${i.price} ₽`));
     card.append(el('p',`Доставка: ${r.delivery} ₽ · Итого: ${r.total} ₽`),el('p',r.payment),el('p',r.comment));

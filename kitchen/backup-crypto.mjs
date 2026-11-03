@@ -7,6 +7,10 @@ export function validate(data,project){
  if(data?.format!=='missmaki-business'||data.version!==1||!Array.isArray(data.orders)||!Array.isArray(data.reviews)||!Array.isArray(data.audit)||!Number.isFinite(Date.parse(data.createdAt)))throw Error('Неизвестный формат копии');
  if(project&&data.project!==project)throw Error('Копия относится к другой базе');
  for(const table of ['orders','reviews','audit'])if(data[table].some(r=>!r||typeof r!=='object'||r.id===undefined))throw Error('Неполные данные в копии');
+ const cells=data.orders.filter(r=>r.pickup_number!=null);
+ if(cells.some(r=>!Number.isInteger(r.pickup_number)||r.pickup_number<1||r.pickup_number>6))throw Error('Неверный номер ячейки в копии');
+ if(data.pickupCounter!==undefined){const c=data.pickupCounter;if(!c||!Number.isSafeInteger(c.issued)||c.issued<0||!Number.isInteger(c.lastValue)||c.lastValue!==(c.issued===0?0:(c.issued-1)%6+1))throw Error('Неверный счётчик ячеек в копии');}
+ if(cells.length&&data.pickupCounter===undefined)throw Error('В копии нет счётчика ячеек');
  return data;
 }
 export async function encryptBackup(data,passphrase){
@@ -31,6 +35,7 @@ begin;
 create temporary table mm_restore_data(data jsonb) on commit drop;
 insert into mm_restore_data values(${tag}${json}${tag}::jsonb);
 do $$ begin
+ if (select data ? 'pickupCounter' from mm_restore_data) and to_regclass('missmaki_guard.pickup_counter') is null then raise exception 'Install migration 008 before restoring pickup cells';end if;
  if exists(select 1 from mm_restore_data d,cross lateral jsonb_array_elements(d.data->'orders') o where not exists(select 1 from auth.users u where u.id=(o->>'customer_id')::uuid)) then raise exception 'Missing Auth users: restore provider Auth backup first';end if;
  if exists(select 1 from mm_restore_data d,cross lateral jsonb_array_elements(d.data->'reviews') r where not exists(select 1 from auth.users u where u.id=(r->>'customer_id')::uuid)) then raise exception 'Missing Auth users: restore provider Auth backup first';end if;
 end $$;
@@ -44,6 +49,12 @@ insert into public.audit overriding system value select r.* from mm_restore_data
 do $$ begin
  if exists(select 1 from pg_trigger where tgrelid='public.orders'::regclass and tgname='orders_submission_budget') then alter table public.orders enable trigger orders_submission_budget;end if;
  if exists(select 1 from pg_trigger where tgrelid='public.reviews'::regclass and tgname='reviews_submission_budget') then alter table public.reviews enable trigger reviews_submission_budget;end if;
+end $$;
+do $$ begin
+ if (select data ? 'pickupCounter' from mm_restore_data) then
+  update missmaki_guard.pickup_counter set last_value=(select (data->'pickupCounter'->>'lastValue')::integer from mm_restore_data),issued=(select (data->'pickupCounter'->>'issued')::bigint from mm_restore_data)
+  where singleton and issued<(select (data->'pickupCounter'->>'issued')::bigint from mm_restore_data);
+ end if;
 end $$;
 select setval(pg_get_serial_sequence('public.orders','number'),greatest(coalesce((select max(number) from public.orders),1),(select last_value from public.orders_number_seq)),true);
 select setval(pg_get_serial_sequence('public.audit','id'),greatest(coalesce((select max(id) from public.audit),1),(select last_value from public.audit_id_seq)),true);

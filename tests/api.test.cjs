@@ -36,3 +36,15 @@ test('anonymous Auth uses server proof and a required missing guard fails closed
  const client={rpc:async()=>({data:{bits:18,seal:'a'.repeat(64),nonce:'fixture',expires:1}}),auth:{signInAnonymously:async options=>{signed=options;return {data:{}};}}};const {api}=load(client);api.solve=async challenge=>{assert.equal(challenge.bits,18);return '123';};await api.signInAnonymous(client);assert.equal(signed.options.data.mm_proof.solution,'123');assert.equal(signed.options.data.mm_proof.challenge.nonce,'fixture');
  const window={MISSMAKI_CONFIG:{enabled:true,supabaseUrl:'https://orders.example.com',publishableKey:'TEST_FIXTURE_ONLY',authProofRequired:true}};let calls=0;const missing={rpc:async()=>({data:null,error:{code:'PGRST202'}}),auth:{signInAnonymously:async()=>{calls++;}}};load(missing,{window});await assert.rejects(window.MM.signInAnonymous(missing),/защита ещё не установлена/);assert.equal(calls,0);
 });
+test('pickup messages use only server cell/date/time; delivery and legacy orders keep their existing message',()=>{
+ const {api}=load({});
+ const row={number:42,status:'accepted',minutes:15,fulfillment:'pickup',timing:'asap',pickup_number:1};
+ assert.equal(api.orderMessage(row),'Ваш заказ подтверждён! 🍣\n\n⏱ Время ожидания: 15 минут\n\n📦 Ячейка самовывоза: №1\n\nВаш заказ будет ждать вас в ячейке №1.\n\nОплата при получении на кассе.\n\nСпасибо, что выбираете MissMaki! ❤️');
+ const preorder=api.orderMessage({...row,timing:'preorder',pickup_number:2,requested_date:'2026-11-05',requested_time:'18:30:00'});assert(preorder.includes('05.11.2026'));assert(preorder.includes('18:30'));assert(preorder.includes('№2 к выбранному времени'));assert(!preorder.includes('Время ожидания'));
+ for(const other of [{...row,fulfillment:'delivery',pickup_number:null,timing:'preorder'},{...row,pickup_number:null}])assert.equal(api.orderMessage(other),'Ваш заказ №42 принят! Время ожидания — 15 минут');
+ assert.equal(api.orderMessage({...row,status:'rejected'}),'К сожалению, сейчас мы не можем принять ваш заказ');
+});
+test('customer status reads pickup fields after migration and safely falls back before migration',async()=>{
+ const columns=[];let attempt=0;const client={auth:{getSession:async()=>({data:{session:{user:{id:'fixture'}}}})},from(){const q={select(s){columns.push(s);return q;},eq(){return q;},async maybeSingle(){return ++attempt===1?{error:{code:'42703'}}:{data:{number:42,status:'accepted',minutes:15}};}};return q;}};
+ const {api}=load(client);assert.equal((await api.order('fixture')).number,42);assert(columns[0].includes('pickup_number'));assert.equal(columns[1],'number,status,minutes');
+});

@@ -77,7 +77,21 @@
   async order(request){
    await this.customer();
    if(this.databaseGuest())return this.rawRpc('guest_order',{p_token:this.guestRecord().token,p_request:request});
-   const {data,error}=await this.client().from('orders').select('number,status,minutes').eq('request_id',request).maybeSingle();if(error)throw error;return data;
+   let result=await this.client().from('orders').select('number,status,minutes,fulfillment,timing,requested_date,requested_time,pickup_number').eq('request_id',request).maybeSingle();
+   // Backward compatibility before migration 008 is approved and installed.
+   if(['42703','PGRST204'].includes(result.error?.code))result=await this.client().from('orders').select('number,status,minutes').eq('request_id',request).maybeSingle();
+   if(result.error)throw result.error;return result.data;
+  },
+  orderMessage(data){
+   if(data.status==='accepted'&&data.fulfillment==='pickup'&&Number.isInteger(data.pickup_number)&&data.pickup_number>=1&&data.pickup_number<=6){
+    const n=data.pickup_number;
+    if(data.timing==='preorder'){
+     const date=/^\d{4}-\d{2}-\d{2}$/.test(data.requested_date||'')?data.requested_date.split('-').reverse().join('.'):null;
+     const time=/^\d{2}:\d{2}/.test(data.requested_time||'')?data.requested_time.slice(0,5):null;
+     if(date&&time)return `Ваш предзаказ подтверждён! 🍣\n\n📅 Дата получения: ${date}\n\n🕒 Время получения: ${time}\n\n📦 Ячейка самовывоза: №${n}\n\nВаш заказ будет ждать вас в ячейке №${n} к выбранному времени.\n\nОплата при получении на кассе.\n\nСпасибо, что планируете вкусные моменты вместе с MissMaki! ❤️`;
+    }else return `Ваш заказ подтверждён! 🍣\n\n⏱ Время ожидания: ${data.minutes} минут\n\n📦 Ячейка самовывоза: №${n}\n\nВаш заказ будет ждать вас в ячейке №${n}.\n\nОплата при получении на кассе.\n\nСпасибо, что выбираете MissMaki! ❤️`;
+   }
+   return data.status==='accepted'?`Ваш заказ №${data.number} принят! Время ожидания — ${data.minutes} минут`:data.status==='rejected'?'К сожалению, сейчас мы не можем принять ваш заказ':data.status==='completed'?`Заказ №${data.number} выполнен`:`Заказ №${data.number} отправлен. Ожидаем подтверждения MissMaki…`;
   },
   async rpc(name,args={}){
    if(!this.databaseGuest()||name==='public_reviews')return this.rawRpc(name,args);

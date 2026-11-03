@@ -25,7 +25,8 @@ if(window.MM?.enabled){
   stopWatching=MM.subscribe(async()=>{
    const data=await MM.order(id);
    if(!data){document.getElementById('status').textContent=lastSubmissionError?'Не удалось подтвердить отправку. '+lastSubmissionError+' Повторите с той же корзиной.':'Заказ пока не найден в базе. Если отправка завершилась ошибкой, повторите с той же корзиной.';return;}
-   const msg=data.status==='accepted'?`Ваш заказ №${data.number} принят! Время ожидания — ${data.minutes} минут`:data.status==='rejected'?'К сожалению, сейчас мы не можем принять ваш заказ':data.status==='completed'?`Заказ №${data.number} выполнен`:`Заказ №${data.number} отправлен. Ожидаем подтверждения MissMaki…`;
+   const msg=MM.orderMessage(data);
+   document.getElementById('status').style.whiteSpace='pre-line';
    document.getElementById('status').textContent=msg;
    document.getElementById('payment-info').hidden=false;
    document.getElementById('decision').style.display='none';
