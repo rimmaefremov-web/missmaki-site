@@ -46,6 +46,7 @@ test('lost order response restores checkout after reload and reuses request ID',
 });
 
 test('bundled SDK loads locally without a foreign CDN',async({page})=>{
+ await page.route('**/shared/config.js',r=>r.fulfill({contentType:'application/javascript',body:'window.MISSMAKI_CONFIG={enabled:false};'}));
  const external=[];page.on('request',r=>{if(!r.url().startsWith('http://127.0.0.1:4173'))external.push(r.url());});
  await page.goto('/kitchen/');await expect(page.locator('#error')).toContainText('ещё не подключена');
  expect(await page.evaluate(()=>typeof window.supabase?.createClient)).toBe('function');expect(external).toEqual([]);
