@@ -1,0 +1,10 @@
+{
+  "projectUrl": "https://2588c524eb7f233257b387ea5e616384.supa.tatnet.cloud",
+  "migration": "008",
+  "installerSha256": "79c93ae76b5f3aec5c0b87b8f978eefa512dcdd7198aebd836edc79c343e493a",
+  "installed": true,
+  "selfChecks": "passed",
+  "evidence": "Owner reported SQL Editor result: installed=true, migration=008, selfChecks=passed",
+  "reportedAt": "2026-11-04",
+  "executedByAgent": false
+}
