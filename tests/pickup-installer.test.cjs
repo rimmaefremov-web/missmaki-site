@@ -1,0 +1,12 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const {PGlite}=require('@electric-sql/pglite');
+test('owner installer executes real status checks and rolls back every fixture/counter without consuming customer order numbers',async()=>{
+ const db=new PGlite();const admin='33333333-3333-4333-8333-333333333333';try{
+  await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;create publication supabase_realtime;");
+  for(const file of ['001_kitchen.sql','002_catalog.sql','004_review_moderation_idempotency.sql','005_submission_budgets.sql','007_backup_and_test_records.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8'));
+  await db.query('insert into auth.users values($1)',[admin]);await db.query("insert into public.staff values($1,'admin')",[admin]);
+  const sequence=(await db.query('select last_value,is_called from public.orders_number_seq')).rows[0];const install=fs.readFileSync('supabase/INSTALL_PICKUP_008.sql','utf8');await db.exec(install);
+  assert.equal((await db.query('select count(*)::int as n from public.orders')).rows[0].n,0);assert.equal((await db.query('select count(*)::int as n from public.audit')).rows[0].n,0);assert.equal((await db.query('select issued::int as n from missmaki_guard.pickup_counter')).rows[0].n,0);assert.equal((await db.query('select count(*)::int as n from auth.users')).rows[0].n,1);assert.deepEqual((await db.query('select last_value,is_called from public.orders_number_seq')).rows[0],sequence);assert.equal((await db.query("select tgenabled from pg_trigger where tgname='orders_submission_budget'")).rows[0].tgenabled,'O');
+  await db.query('update missmaki_guard.pickup_counter set last_value=5,issued=5');await db.exec(install);assert.equal((await db.query('select issued::int as n from missmaki_guard.pickup_counter')).rows[0].n,5);
+  await db.query('delete from public.staff');await assert.rejects(db.exec(install),/Нет существующего администратора/);await db.exec('rollback');assert.equal((await db.query('select issued::int as n from missmaki_guard.pickup_counter')).rows[0].n,5);
+ }finally{await db.close();}
+});

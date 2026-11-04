@@ -8,5 +8,6 @@
   "browserChecks": 11,
   "actualAdminExportVerified": false,
   "fullAuthBackupVerified": false,
-  "browserNote": "Real app/SDK/Worker; environment proxy CA exception in Chromium; no physical Safari test in this run"
+  "browserNote": "Real app/SDK/Worker; environment proxy CA exception in Chromium; no physical Safari test in this run",
+  "sourceCommit": "031ae4cbedd167fcad34c622779863a02c108a6d"
 }

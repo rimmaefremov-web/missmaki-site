@@ -1,5 +1,5 @@
 // Offline release preparation only: never deploys, merges, changes source config or contacts Tatnet.
-import {readFileSync,writeFileSync,mkdirSync,existsSync,rmSync,cpSync,readdirSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync,existsSync,rmSync,cpSync,copyFileSync,readdirSync} from 'node:fs';
 import {resolve,dirname,join,relative} from 'node:path';import {fileURLToPath} from 'node:url';import {execFileSync} from 'node:child_process';import {createHash} from 'node:crypto';
 import {configuration} from './kitchen-config.mjs';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');const args=process.argv.slice(2);
@@ -24,9 +24,21 @@ try{
  const fallbackHtml=readFileSync(join(fallback,'index.html'),'utf8').replace('</body>','<script src="shared/maintenance.js"></script></body>');writeFileSync(join(fallback,'index.html'),fallbackHtml);
  execFileSync('git',['archive','--format=zip','--output='+join(out,'site-before.zip'),baseline],{cwd:root});
  function inventory(dir,prefix=''){return readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?inventory(join(dir,e.name),prefix+e.name+'/'):[{file:prefix+e.name,sha256:hash(readFileSync(join(dir,e.name)))}]);}
- let verification=null;try{const observed=JSON.parse(readFileSync(join(root,'supabase/verification.json'),'utf8'));if(observed.projectUrl===config.supabaseUrl&&observed.installSha256===hash(readFileSync(join(root,'supabase/INSTALL_FINAL.sql')))&&observed.apiComplete)verification=observed;}catch{}
- const manifest={serverVerification:verification,preparedAt:new Date().toISOString(),head,baseline,notDeployed:true,approvalRequired:true,menuAndPhotos:invariants,blockers:[...(!verification?['INSTALL_FINAL SQL not applied and tested on this project']:[]),'Encrypted business backup not yet exported on real service','Full Auth backup and Free usage/alerts not confirmed','Owner approval for production release is required'],candidate:inventory(candidate),fallback:inventory(fallback),baselineArchiveSha256:hash(readFileSync(join(out,'site-before.zip')))};
+ let verification=null,coreVerification=null,backupEvidence=null;
+ try{
+  const observed=JSON.parse(readFileSync(join(root,'supabase/verification.json'),'utf8'));
+  if(observed.projectUrl===config.supabaseUrl&&observed.apiComplete){
+   if(observed.installSha256===hash(readFileSync(join(root,'supabase/INSTALL_FINAL.sql'))))verification=observed;
+   if(/^[a-f0-9]{40}$/.test(observed.sourceCommit||'')){
+    const checked=execFileSync('git',['show',observed.sourceCommit+':supabase/INSTALL_FINAL.sql'],{cwd:root});
+    if(hash(checked)===observed.installSha256)coreVerification=observed;
+   }
+  }
+ }catch{}
+ try{const receipt=JSON.parse(readFileSync(join(root,'release/backup-confirmation.json'),'utf8'));if(receipt.projectUrl===config.supabaseUrl&&receipt.downloadConfirmedByOwner)backupEvidence=receipt;}catch{}
+ mkdirSync(join(out,'database'));for(const file of ['INSTALL_PICKUP_008.sql','INSTALL_FINAL.sql'])copyFileSync(join(root,'supabase',file),join(out,'database',file));
+ const manifest={serverVerification:verification,coreServerVerification:coreVerification,backupEvidence,preparedAt:new Date().toISOString(),head,baseline,notDeployed:true,approvalRequired:true,releaseScope:'One combined release including pickup cells 008',pickupCells:{included:true,migration:'database/INSTALL_PICKUP_008.sql',migrationSha256:hash(readFileSync(join(root,'supabase/INSTALL_PICKUP_008.sql'))),state:'installation_and_live_verification_pending'},menuAndPhotos:invariants,blockers:[...(!coreVerification&&!verification?['INSTALL_FINAL SQL not applied and tested on this project']:[]),'Install 008 and confirm its rollback-only live checks',...(!backupEvidence?['First encrypted business backup not confirmed']:[]),'Explicit owner approval for production publication is required'],operationalLimits:['Manual business backup does not cover all Auth/infrastructure','Free usage and automatic alerts are not exposed by the public key'],candidate:inventory(candidate),fallback:inventory(fallback),baselineArchiveSha256:hash(readFileSync(join(out,'site-before.zip')))};
  writeFileSync(join(out,'release-manifest.json'),JSON.stringify(manifest,null,2));
- writeFileSync(join(out,'READ-ME.txt'),'НЕ ОПУБЛИКОВАНО. candidate — подготовленный релиз, блокеры в release-manifest.json. safe-fallback — прекращает новые отправки, сохраняет меню/корзину и обработку ранее записанных заказов. site-before.zip — точная копия origin/main для сохранности, НЕ готовый откат: содержит прежние интеграции. Публикация только после отдельного согласия владельца. Копия сайта не является резервной копией базы.\n');
+ writeFileSync(join(out,'READ-ME.txt'),'НЕ ОПУБЛИКОВАНО. Единый candidate включает ячейки 008 и все остальные функции. Для существующей MissMaki-test выполнить только database/INSTALL_PICKUP_008.sql; он содержит миграцию и откатываемые серверные проверки. Не повторять 001/002/003 и не создавать базу. После установки необходима проверка результата; блокеры в release-manifest.json. safe-fallback — прекращает новые отправки, сохраняет меню/корзину и обработку ранее записанных заказов. site-before.zip — точная копия origin/main для сохранности, НЕ готовый откат: содержит прежние интеграции. Публикация только после отдельного согласия владельца. Копия сайта не является резервной копией базы.\n');
  console.log('Подготовлены candidate, safe-fallback, архив прежнего сайта и manifest. Публикации/SQL/DNS не было.');
 }catch(error){rmSync(out,{recursive:true,force:true});throw error;}
