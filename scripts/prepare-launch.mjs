@@ -15,6 +15,7 @@ try{
  writeFileSync(join(candidate,'shared/config.js'),'// Public settings only. Prepared candidate, not deployed.\nwindow.MISSMAKI_CONFIG=Object.freeze('+JSON.stringify(config)+');\n');
  // Retain the production domain declaration; copying files never changes DNS.
  if(existsSync(join(root,'CNAME')))cpSync(join(root,'CNAME'),join(candidate,'CNAME'));
+ writeFileSync(join(candidate,'.nojekyll'),'');
  const before=readFileSync(join(root,'index.html'),'utf8'),after=readFileSync(join(candidate,'index.html'),'utf8');
  const invariants={};for(const [name,re] of [['menu',/const groups=(\[.*?\]);\s*const esc=/s],['photos',/const approvedPhotos=(.*?);\n/s]]){const a=before.match(re)?.[1],b=after.match(re)?.[1];if(!a||a!==b)throw Error('Изменились '+name);invariants[name]=hash(a);}
  if(/script\.google|telegramConfirmed|customerDecision\(/.test(after))throw Error('Старый транспорт не удалён');
