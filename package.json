@@ -1,0 +1,14 @@
+{
+  "name": "missmaki-kitchen-checks",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "test:browser": "playwright test",
+    "catalog:check": "node scripts/extract-catalog.cjs",
+    "build:preview": "node scripts/prepare-static-test.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "@playwright/test": "1.56.1"
+  }
+}

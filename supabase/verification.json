@@ -1,0 +1,13 @@
+{
+  "projectUrl": "https://2588c524eb7f233257b387ea5e616384.supa.tatnet.cloud",
+  "verifiedAt": "2026-11-02T20:41:55.831127+00:00",
+  "installSha256": "8f697c5a55e8bb592777684b90379c801c426ae48aeac13980b11447f3352391",
+  "apiComplete": true,
+  "apiChecks": 29,
+  "browserComplete": true,
+  "browserChecks": 11,
+  "actualAdminExportVerified": false,
+  "fullAuthBackupVerified": false,
+  "browserNote": "Real app/SDK/Worker; environment proxy CA exception in Chromium; no physical Safari test in this run",
+  "sourceCommit": "031ae4cbedd167fcad34c622779863a02c108a6d"
+}
