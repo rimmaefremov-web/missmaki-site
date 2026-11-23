@@ -20,8 +20,9 @@ iframe {
 }
 
 #splash {
+  z-index: 1;
   overflow: hidden;
-  background: #21110a url("splash.jpg") center bottom / cover no-repeat;
+  background: #21110a url("splash.jpg?v=2") center bottom / cover no-repeat;
   touch-action: none;
   user-select: none;
 }
@@ -35,9 +36,10 @@ iframe {
 #open-menu {
   position: absolute;
   left: 50%;
-  bottom: max(env(safe-area-inset-bottom), min(13vh, 15vw));
+  /* The arrow sits 90px from the bottom of the 720 × 1280 artwork. */
+  bottom: max(7.03vh, 12.5vw);
   width: min(84vw, 85vh);
-  height: min(24vh, 32vw);
+  height: max(9vh, 16vw);
   transform: translate(-50%, 50%);
   border: 0;
   border-radius: 14px;
@@ -49,18 +51,6 @@ iframe {
 #open-menu:focus-visible {
   outline: 3px solid white;
   outline-offset: -4px;
-}
-
-@media (max-aspect-ratio: 3/5) {
-  #splash { background-position: center top; background-size: auto 136%; }
-
-  #splash::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: url("splash.jpg") center bottom / 100% auto no-repeat;
-    mask-image: linear-gradient(to top, black 32vw, transparent 70vw);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
