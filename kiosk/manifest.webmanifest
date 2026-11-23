@@ -1,0 +1,15 @@
+{
+  "id": "../kiosk.html",
+  "name": "MissMaki — самообслуживание",
+  "short_name": "MissMaki",
+  "start_url": "../kiosk.html",
+  "scope": "../kiosk.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#21110a",
+  "theme_color": "#21110a",
+  "icons": [
+    {"src": "../missmaki-favicon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "../missmaki-favicon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

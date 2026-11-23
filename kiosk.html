@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#21110a">
+  <meta name="robots" content="noindex">
+  <title>MissMaki — самообслуживание</title>
+  <link rel="icon" href="./favicon.ico">
+  <link rel="manifest" href="./kiosk/manifest.webmanifest">
+  <link rel="stylesheet" href="./kiosk/kiosk.css">
+  <script src="./kiosk/kiosk.js" defer></script>
+</head>
+<body>
+  <main id="menu"></main>
+  <div id="splash">
+    <button id="open-menu" type="button" aria-label="Проведите вверх, чтобы открыть меню"></button>
+  </div>
+  <dialog id="information">
+    <form method="dialog"><button type="submit">Вернуться к меню</button></form>
+    <iframe title="Информация MissMaki"></iframe>
+  </dialog>
+</body>
+</html>

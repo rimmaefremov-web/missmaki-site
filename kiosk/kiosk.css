@@ -1,0 +1,95 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #21110a;
+}
+
+#menu, #splash {
+  position: fixed;
+  inset: 0;
+}
+
+iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: white;
+}
+
+#splash {
+  overflow: hidden;
+  background: #21110a url("splash.jpg") center bottom / cover no-repeat;
+  touch-action: none;
+  user-select: none;
+}
+
+#splash.open {
+  transform: translateY(-100%);
+  transition: transform 420ms ease-in-out;
+  pointer-events: none;
+}
+
+#open-menu {
+  position: absolute;
+  left: 50%;
+  bottom: max(env(safe-area-inset-bottom), min(13vh, 15vw));
+  width: min(84vw, 85vh);
+  height: min(24vh, 32vw);
+  transform: translate(-50%, 50%);
+  border: 0;
+  border-radius: 14px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+#open-menu:focus-visible {
+  outline: 3px solid white;
+  outline-offset: -4px;
+}
+
+@media (max-aspect-ratio: 3/5) {
+  #splash { background-position: center top; background-size: auto 136%; }
+
+  #splash::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: url("splash.jpg") center bottom / 100% auto no-repeat;
+    mask-image: linear-gradient(to top, black 32vw, transparent 70vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #splash.open { transition: none; }
+}
+
+#information {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 0;
+}
+
+#information[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+#information form {
+  padding: 8px max(12px, env(safe-area-inset-right));
+  background: #21110a;
+}
+
+#information button {
+  min-height: 44px;
+  font: inherit;
+}
