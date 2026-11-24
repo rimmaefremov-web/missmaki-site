@@ -48,21 +48,25 @@
     card.append(el('p',r.name));const tel=el('a',r.phone);tel.href='tel:'+r.phone.replace(/[^+\d]/g,'');card.append(tel);
     card.append(el('p',(r.fulfillment==='pickup'?'Самовывоз':'Доставка: '+r.area)+' · '+r.address));
     if(r.pickup_number)card.append(el('strong',`📦 Ячейка самовывоза: №${r.pickup_number}`));
-    if(r.timing==='preorder')card.append(el('p',`Предзаказ: ${r.requested_date} к ${r.requested_time}`));
+    if(r.timing==='preorder'){card.append(el('strong','ПРЕДЗАКАЗ','preorder-badge'));const date=/^\d{4}-\d{2}-\d{2}$/.test(r.requested_date||'')?r.requested_date.split('-').reverse().join('.'):r.requested_date;card.append(el('p',`Дата и время: ${date} к ${(r.requested_time||'').slice(0,5)}`,'preorder-schedule'));}
     for(const i of r.items)card.append(el('p',`${i.name} × ${i.quantity} · ${i.price} ₽`));
     card.append(el('p',`Доставка: ${r.delivery} ₽ · Итого: ${r.total} ₽`),el('p',r.payment),el('p',r.comment));
-    if(r.minutes)card.append(el('strong',`Ожидание ${r.minutes} минут`));
+    if(r.minutes&&r.timing!=='preorder')card.append(el('strong',`Ожидание ${r.minutes} минут`));
    }
    const actions=el('div',undefined,'actions');
    if(review){for(const [status,label] of [['approved','ПРИНЯТЬ'],['rejected','ОТКЛОНИТЬ']])actions.append(button(label,async()=>{if(r.status===status)return;if(r.status!=='pending'&&!window.confirm(`Изменить решение: ${labels[r.status]} → ${labels[status]}?`))return;await MM.rpc('moderate_review',{p_id:r.id,p_status:status,p_version:r.version});},status==='rejected'?'reject':'',r.status===status));}
    else{
-    for(const m of times)actions.append(button(m+' минут',()=>changeOrder(r,'accepted',m)));
-    actions.append(button('ОТКАЗ',()=>changeOrder(r,'rejected',null),'reject'));
-    for(const [status,label] of [['completed','Выполнен'],['new','Вернуть в новые']])actions.append(button(label,()=>changeOrder(r,status,null)));
+    if(r.timing==='preorder'){
+     // Existing RPC requires a valid minutes value. This compatibility value is
+     // never a promised delay: requested_date/time remain authoritative and unchanged.
+     actions.append(button('Принять',()=>changeOrder(r,'accepted',15),'preorder-accept'));
+     actions.append(button('Отклонить',()=>changeOrder(r,'rejected',null),'preorder-reject'));
+    }else{for(const m of times)actions.append(button(m+' минут',()=>changeOrder(r,'accepted',m)));actions.append(button('ОТКАЗ',()=>changeOrder(r,'rejected',null),'reject'));}
+    if(!(r.timing==='preorder'&&tab==='new'))for(const [status,label] of [['completed','Выполнен'],['new','Вернуть в новые']])actions.append(button(label,()=>changeOrder(r,status,null)));
    }
-   if(finalFeatures)actions.append(button(r.is_test?'Снять отметку теста':'Пометить как тест',async()=>{if(!window.confirm(r.is_test?'Вернуть запись в обычные?':'Пометить запись как тестовую? Отзыв будет скрыт от посетителей, данные сохранятся.'))return;await MM.rpc('set_test_record',{p_entity:review?'review':'order',p_id:r.id,p_test:!r.is_test});}));
+   if(finalFeatures&&!(r.timing==='preorder'&&tab==='new'))actions.append(button(r.is_test?'Снять отметку теста':'Пометить как тест',async()=>{if(!window.confirm(r.is_test?'Вернуть запись в обычные?':'Пометить запись как тестовую? Отзыв будет скрыт от посетителей, данные сохранятся.'))return;await MM.rpc('set_test_record',{p_entity:review?'review':'order',p_id:r.id,p_test:!r.is_test});}));
    card.append(actions);
-   const audit=el('details');audit.append(el('summary','История изменений'));const log=el('p','Нажмите, чтобы загрузить','audit');audit.append(log);audit.addEventListener('toggle',async()=>{if(!audit.open)return;try{const {data,error:e}=await MM.client().from('audit').select('created_at,old_status,new_status,minutes').eq('entity_id',r.id).order('created_at');if(e)throw e;log.textContent=data.map(x=>`${new Date(x.created_at).toLocaleString('ru-RU')}: ${labels[x.old_status]||'Создан'} → ${labels[x.new_status]||x.new_status}${x.minutes?' · '+x.minutes+' мин':''}`).join('\n');}catch(e){log.textContent=e.message;}});card.append(audit);cards.append(card);
+   const audit=el('details');audit.append(el('summary','История изменений'));const log=el('p','Нажмите, чтобы загрузить','audit');audit.append(log);audit.addEventListener('toggle',async()=>{if(!audit.open)return;try{const {data,error:e}=await MM.client().from('audit').select('created_at,old_status,new_status,minutes').eq('entity_id',r.id).order('created_at');if(e)throw e;log.textContent=data.map(x=>`${new Date(x.created_at).toLocaleString('ru-RU')}: ${labels[x.old_status]||'Создан'} → ${labels[x.new_status]||x.new_status}${x.minutes&&r.timing!=='preorder'?' · '+x.minutes+' мин':''}`).join('\n');}catch(e){log.textContent=e.message;}});card.append(audit);cards.append(card);
   }
  }
  async function session(session){

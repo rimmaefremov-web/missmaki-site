@@ -40,11 +40,22 @@ test('pickup messages use only server cell/date/time; delivery and legacy orders
  const {api}=load({});
  const row={number:42,status:'accepted',minutes:15,fulfillment:'pickup',timing:'asap',pickup_number:1};
  assert.equal(api.orderMessage(row),'Ваш заказ подтверждён! 🍣\n\n⏱ Время ожидания: 15 минут\n\n📦 Ячейка самовывоза: №1\n\nВаш заказ будет ждать вас в ячейке №1.\n\nОплата при получении на кассе.\n\nСпасибо, что выбираете MissMaki! ❤️');
- const preorder=api.orderMessage({...row,timing:'preorder',pickup_number:2,requested_date:'2026-11-05',requested_time:'18:30:00'});assert(preorder.includes('05.11.2026'));assert(preorder.includes('18:30'));assert(preorder.includes('№2 к выбранному времени'));assert(!preorder.includes('Время ожидания'));
- for(const other of [{...row,fulfillment:'delivery',pickup_number:null,timing:'preorder'},{...row,pickup_number:null}])assert.equal(api.orderMessage(other),'Ваш заказ №42 принят! Время ожидания — 15 минут');
+ const preorder=api.orderMessage({...row,timing:'preorder',pickup_number:2,requested_date:'2026-11-05',requested_time:'18:30:00'});assert(preorder.includes('05.11.2026'));assert(preorder.includes('18:30'));assert(preorder.includes('Ячейка самовывоза: №2'));assert(!preorder.includes('Время ожидания'));
+ for(const other of [{...row,fulfillment:'delivery',pickup_number:null},{...row,pickup_number:null}])assert.equal(api.orderMessage(other),'Ваш заказ №42 принят! Время ожидания — 15 минут');
  assert.equal(api.orderMessage({...row,status:'rejected'}),'К сожалению, сейчас мы не можем принять ваш заказ');
 });
 test('customer status reads pickup fields after migration and safely falls back before migration',async()=>{
  const columns=[];let attempt=0;const client={auth:{getSession:async()=>({data:{session:{user:{id:'fixture'}}}})},from(){const q={select(s){columns.push(s);return q;},eq(){return q;},async maybeSingle(){return ++attempt===1?{error:{code:'42703'}}:{data:{number:42,status:'accepted',minutes:15}};}};return q;}};
  const {api}=load(client);assert.equal((await api.order('fixture')).number,42);assert(columns[0].includes('pickup_number'));assert.equal(columns[1],'number,status,minutes');
+});
+
+test('scheduled messages use requested fulfillment/time and Moscow date without changing ordinary orders',()=>{
+ const {api}=load({});const now=new Date('2026-11-24T22:00:00Z');
+ const row={number:42,status:'accepted',minutes:15,timing:'preorder',fulfillment:'delivery',requested_date:'2026-11-25',requested_time:'18:30:00'};
+ assert.equal(api.orderMessage(row,now),'Ваш предзаказ принят! Доставим к 18:30 💚');
+ assert.equal(api.orderMessage({...row,requested_date:'2026-11-26'},now),'Ваш предзаказ принят! Доставим к 18:30 26.11.2026 💚');
+ assert.equal(api.orderMessage({...row,fulfillment:'pickup'},now),'Ваш предзаказ принят! Будет готово к 18:30. Будем Вас ждать 💚');
+ assert(api.orderMessage({...row,fulfillment:'pickup',pickup_number:6},now).includes('Ячейка самовывоза: №6'));
+ assert.equal(api.orderMessage({...row,status:'rejected'},now),'К сожалению, сейчас мы не можем принять ваш заказ');
+ assert.equal(api.orderMessage({...row,timing:'asap'},now),'Ваш заказ №42 принят! Время ожидания — 15 минут');
 });
