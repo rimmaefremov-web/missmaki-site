@@ -1,0 +1,16 @@
+{
+  "projectUrl": "https://2588c524eb7f233257b387ea5e616384.supa.tatnet.cloud",
+  "migration": "009",
+  "installerSha256": "10924b74b138ebf98003e4e2984e34ce89ac00341b7b30744d97d5a0c9d61d84",
+  "installed": true,
+  "selfChecks": "passed",
+  "evidence": "Owner reported installed=true, migration=009, selfChecks=passed in SQL Editor",
+  "reportedAt": "2026-11-24T16:46:35.328955+00:00",
+  "executedByAgent": false,
+  "liveCapabilityProbe": {
+    "httpStatus": 200,
+    "version": 9,
+    "pickupContactOptional": true,
+    "deliveryContactRequired": true
+  }
+}
