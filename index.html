@@ -129,12 +129,13 @@ async function checkout(){
  }
  return checkoutOnce();
 }
+let pickupIntent;
 async function checkoutOnce(){
  if(busy)return;
  const name=document.getElementById('name').value.trim(),phone=document.getElementById('phone').value.trim(),area=document.getElementById('area').value,address=document.getElementById('address').value.trim(),comment=document.getElementById('comment').value.trim();
  const snapshot=Object.values(cart).map(x=>({...x}));const birthdayGift=!!document.getElementById('birthday-check')?.checked;
  if(!snapshot.length)return alert('Корзина пуста');if(birthdayGift&&totals().subtotal<1000)return alert('Подарочный ролл доступен при заказе от 1 000 ₽');
- if(!name||!phone||(method()==='delivery'&&(!area||!address)))return alert(method()==='pickup'?'Укажите имя и телефон':'Укажите имя, телефон, район и адрес');
+ if(method()==='delivery'&&(!name||!phone||!area||!address))return alert('Укажите имя, телефон, район и адрес');
  if(name.length>100||phone.length>50||address.length>300||comment.length>500)return alert('Сократите данные заказа');
  if(isPreorder()&&!window.MM?.enabled){try{const slot=await jsonpGet({action:'availability',date:document.getElementById('preorder-date').value,time:document.getElementById('preorder-time').value});if(!slot.ok)return alert('Не удалось проверить время предзаказа');if(!slot.available){checkSelectedSlot();return alert('Выбранное время уже занято. Выберите свободное время.')}}catch(e){return alert('Не удалось проверить свободное время. Повторите попытку.')}}
  const {subtotal,delivery,total}=totals(),button=document.getElementById('send'),status=document.getElementById('status');
@@ -146,6 +147,15 @@ async function checkoutOnce(){
   }).sort((a,b)=>a.sku.localeCompare(b.sku));
   const timing=isPreorder()?'preorder':'asap';const requestedDate=document.getElementById('preorder-date').value;const requestedTime=document.getElementById('preorder-time').value;if(timing==='preorder'&&(!requestedDate||!requestedTime))return alert('Выберите дату и время предзаказа');
   const giftComment=birthdayGift?'🎂 ПОДАРОЧНЫЙ РОЛЛ 0 ₽ (стоимость 500 ₽). При получении проверить ОРИГИНАЛ документа: день рождения именно сегодня. Без документа получить 500 ₽ за ролл.':'';const content={birthdayGift,birthdayGiftPrice:500,timing,requestedDate:timing==='preorder'?requestedDate:'',requestedTime:timing==='preorder'?requestedTime:'',name,phone,area:method()==='pickup'?'Самовывоз':area,address:method()==='pickup'?'п. Южный, ул. Северная, 16/1':address,fulfillment:method(),comment:[comment,giftComment].filter(Boolean).join("\n"),items,subtotal,delivery,total};
+  // Separate successive walk-up customers with identical anonymous pickup baskets.
+  // Keep the intent through failures/reloads; rotate it only after server acknowledgement.
+  if(content.fulfillment==='pickup'){
+   let legacyPickupDraft=false;
+   try{const draft=JSON.parse(localStorage.getItem('mm-pending-submission'));const saved=JSON.parse(localStorage.getItem('mm-pickup-intent'));legacyPickupDraft=draft?.payload?.fulfillment==='pickup'&&!draft.payload.clientIntent&&/^[a-f0-9-]{36}$/.test(draft.requestId||'');const id=draft?.payload?.fulfillment==='pickup'?draft.payload.clientIntent:saved&&Date.now()-saved.createdAt<7*86400000?saved.id:null;if(/^[a-f0-9-]{36}$/.test(id||''))pickupIntent=id;}catch(e){}
+   if(!legacyPickupDraft){pickupIntent||=crypto.randomUUID();content.clientIntent=pickupIntent;
+    try{localStorage.setItem('mm-pickup-intent',JSON.stringify({id:pickupIntent,createdAt:Date.now()}));}catch(e){}
+   }
+  }
   const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(content)));
   const fingerprint=Array.from(new Uint8Array(hash),v=>v.toString(16).padStart(2,'0')).join('');
   const recordKey='missmaki-order:'+fingerprint;
@@ -161,6 +171,7 @@ async function checkoutOnce(){
   try{sessionStorage.setItem('missmaki-pending-order',JSON.stringify(pending))}catch(e){}
   const result=await submit({...content,requestId:pending.requestId,origin:location.origin});
   if(result.ok!==true)throw Error('Not confirmed');
+  if(content.fulfillment==='pickup'){try{const saved=JSON.parse(localStorage.getItem('mm-pickup-intent'));if(saved?.id===content.clientIntent)localStorage.removeItem('mm-pickup-intent');}catch(e){}pickupIntent=undefined;}
   try{localStorage.setItem(recordKey,JSON.stringify({requestId:pending.requestId,createdAt:shared?.createdAt||Date.now(),state:'sent',confirmedAt:Date.now()}))}catch(e){}
   // Cart keys belong to the display, not the server. Preserve additions during the request.
   for(const item of snapshot){if(cart[item.sku]){cart[item.sku].quantity-=item.quantity;if(cart[item.sku].quantity<=0)delete cart[item.sku]}}
@@ -176,7 +187,7 @@ function birthdayRefresh(){const c=document.getElementById('birthday-check'),h=d
 render();renderCart();
 
 function method(){return document.querySelector('input[name="fulfillment"]:checked')?.value||'delivery'}
-function setMethod(){const pickup=method()==='pickup';document.getElementById('pickup-info').style.display=pickup?'block':'none';document.getElementById('delivery-fields').style.display=pickup?'none':'block';document.getElementById('delivery-note').textContent=pickup?'Самовывоз бесплатно. Без регистрации.':'Доставка 200 ₽, при заказе от 3000 ₽ — бесплатно. Без регистрации.';renderCart()}
+function setMethod(){const pickup=method()==='pickup';for(const [id,label] of [['name','Ваше имя'],['phone','Номер телефона']]){const field=document.getElementById(id);field.required=!pickup;field.setAttribute('aria-required',String(!pickup));field.placeholder=label+(pickup?' (необязательно)':'');}document.getElementById('pickup-info').style.display=pickup?'block':'none';document.getElementById('delivery-fields').style.display=pickup?'none':'block';document.getElementById('delivery-note').textContent=pickup?'Самовывоз бесплатно. Без регистрации.':'Доставка 200 ₽, при заказе от 3000 ₽ — бесплатно. Без регистрации.';renderCart()}
 function krasnodarMinutes(){const t=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date()).split(':').map(Number);return t[0]*60+t[1]}
 function isOpen(){const t=krasnodarMinutes();return t>=780&&t<1380}
 function showClosed(){const n=document.getElementById('closed-note');n.style.display='block';n.scrollIntoView({behavior:'smooth',block:'center'})}

@@ -45,7 +45,7 @@
    card.append(el('p',new Date(r.created_at).toLocaleString('ru-RU')));
    if(review){card.append(el('p',r.body),el('p',labels[r.status]));}
    else{
-    card.append(el('p',r.name));const tel=el('a',r.phone);tel.href='tel:'+r.phone.replace(/[^+\d]/g,'');card.append(tel);
+    if((r.name||'').trim())card.append(el('p',r.name));if((r.phone||'').trim()){const tel=el('a',r.phone);tel.href='tel:'+r.phone.replace(/[^+\d]/g,'');card.append(tel);}
     card.append(el('p',(r.fulfillment==='pickup'?'Самовывоз':'Доставка: '+r.area)+' · '+r.address));
     if(r.pickup_number)card.append(el('strong',`📦 Ячейка самовывоза: №${r.pickup_number}`));
     if(r.timing==='preorder'){card.append(el('strong','ПРЕДЗАКАЗ','preorder-badge'));const date=/^\d{4}-\d{2}-\d{2}$/.test(r.requested_date||'')?r.requested_date.split('-').reverse().join('.'):r.requested_date;card.append(el('p',`Дата и время: ${date} к ${(r.requested_time||'').slice(0,5)}`,'preorder-schedule'));}
