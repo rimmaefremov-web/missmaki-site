@@ -14,10 +14,10 @@ if(window.MM?.enabled){
   if(result?.ok!==true||typeof result.id!=='string'||!result.id||!Number.isSafeInteger(Number(result.number))||Number(result.number)<1)throw Error('Сервер не подтвердил сохранение заказа. Повторите отправку с прежней корзиной.');
   localStorage.removeItem('mm-pending-submission');
   return result;
-  }catch(e){lastSubmissionError=e.message||'Проверьте интернет';throw e;}
+  }catch(e){lastSubmissionError=MMCompat.message(e);throw e;}
  };
  jsonpGet=async params=>{await MM.customer();return MM.rpc('availability',{p_date:params.date,p_time:params.time});};
- checkout=async()=>{try{await MM.customer();await originalCheckout();}catch(e){document.getElementById('status').textContent=e.message||'Нет соединения. Повторите отправку с тем же заказом.';}};
+ checkout=async()=>{try{MMCompat.ensureCheckoutCrypto();await MM.customer();await originalCheckout();}catch(e){document.getElementById('status').textContent=MMCompat.message(e);}};
  watchOrder=id=>{
   if(!id)return;
   try{localStorage.setItem('missmaki-active-order',id);}catch(e){}
@@ -47,10 +47,10 @@ if(window.MM?.enabled){
    await MM.customer();
    const values={p_name:document.getElementById('review-name').value.trim(),p_rating:Number(document.getElementById('review-rating').value),p_body:document.getElementById('review-text').value.trim(),p_consent:document.getElementById('review-consent').checked};
    const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(JSON.stringify(values)))),x=>x.toString(16).padStart(2,'0')).join('');
-   const key='mm-review:'+hash;let request=localStorage.getItem(key);if(!request){request=crypto.randomUUID();localStorage.setItem(key,request);}
+   const key='mm-review:'+hash;let request=localStorage.getItem(key);if(!request){request=MMCompat.uuid();localStorage.setItem(key,request);}
    await MM.rpc('submit_review',{...values,p_request:request});
    status.textContent='Ваш отзыв ожидает подтверждения';await refreshReviews();
-  }catch(e){status.textContent='Не удалось подтвердить отправку отзыва. Повторите попытку: '+e.message;}
+  }catch(e){status.textContent=MMCompat.message(e,'Не удалось отправить отзыв. Проверьте интернет и повторите попытку.');}
   finally{reviewBusy=false;document.getElementById('review-send').disabled=false;}
  }
  async function refreshReviews(){
@@ -71,5 +71,5 @@ if(window.MM?.enabled){
    setMethod();updateTiming();if(p.requestedTime)document.getElementById('preorder-time').value=p.requestedTime;
   }
  }catch(e){document.getElementById('status').textContent='Не удалось восстановить черновик заказа. Свяжитесь с MissMaki перед новой отправкой.';}
- (async()=>{try{const hasSession=await MM.hasCustomer();const active=localStorage.getItem('missmaki-active-order');if(active&&hasSession)watchOrder(active);MM.subscribe(refreshReviews);}catch(e){document.getElementById('review-status').textContent='Не удалось подключиться: '+e.message;}})();
+ (async()=>{try{const hasSession=await MM.hasCustomer();const active=localStorage.getItem('missmaki-active-order');if(active&&hasSession)watchOrder(active);MM.subscribe(refreshReviews);}catch(e){document.getElementById('review-status').textContent=MMCompat.message(e,'Не удалось подключиться. Проверьте интернет и откройте сайт в Safari или Chrome.');}})();
 }

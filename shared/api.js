@@ -1,3 +1,35 @@
+/* MM_COMPAT_BUNDLE_START */
+/* Secure browser compatibility. No Math.random fallback; no identifiers change on retry. */
+(function(root){
+ 'use strict';
+ // Upgrade only the production hosts; keep local and preview HTTP environments intact.
+ if(root.location&&root.location.protocol==='http:'&&/^(www\.)?missmaki\.ru$/i.test(root.location.hostname)){
+  let target=root;
+  // Upgrade the same-origin kiosk wrapper as well, including an older cached wrapper.
+  try{if(root.top&&root.top!==root&&root.top.location.origin===root.location.origin)target=root.top;}catch(e){}
+  const loc=target.location;loc.replace('https://'+loc.host+loc.pathname+loc.search+loc.hash);
+ }
+ function uuid(){
+  const c=root.crypto;
+  if(c&&typeof c.randomUUID==='function'&&c.randomUUID!==uuid){try{return c.randomUUID();}catch(e){/* CSPRNG fallback below. */}}
+  if(!c||typeof c.getRandomValues!=='function')throw Error('Для безопасного оформления откройте сайт в обновлённом Safari или Chrome по HTTPS.');
+  const b=new Uint8Array(16);c.getRandomValues(b);b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;
+  const h=Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');
+  return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
+ }
+ function message(error,fallback){
+  const text=typeof error==='string'?error:error&&error.message;
+  if(typeof text==='string'&&/[А-Яа-яЁё]/.test(text)&&!/(randomUUID|crypto\.|TypeError|ReferenceError|SyntaxError|undefined|not a function|PGRST|SQLSTATE|JWT|\bat\s+https?:\/\/)/i.test(text))return text.slice(0,500);
+  return fallback||'Не удалось подтвердить отправку. Проверьте интернет и повторите с той же корзиной — повторный заказ не создастся.';
+ }
+ function ensureCheckoutCrypto(){
+  if(root.isSecureContext===false||!root.crypto||!root.crypto.subtle||typeof root.crypto.subtle.digest!=='function')throw Error('Для безопасного оформления откройте https://missmaki.ru в Safari или Chrome. Во встроенном браузере выберите «Открыть в браузере».');
+ }
+ // Also support older cached inline scripts that still call the missing native API.
+ if(root.crypto&&typeof root.crypto.randomUUID!=='function'){try{Object.defineProperty(root.crypto,'randomUUID',{value:uuid,writable:true,configurable:true});}catch(e){/* Direct MMCompat.uuid remains available on sealed Crypto objects. */}}
+ root.MMCompat=Object.freeze({uuid,message,ensureCheckoutCrypto});
+})(typeof globalThis!=='undefined'?globalThis:window);
+/* MM_COMPAT_BUNDLE_END */
 /* global supabase */
 (()=>{
  const c=window.MISSMAKI_CONFIG;
@@ -43,7 +75,7 @@
   storeGuest(record){localStorage.setItem('mm-guest-session',JSON.stringify({...record,project:c.supabaseUrl}));},
   async sandboxGuest(){
    const sandbox=Object.create(this);let record=null;sandbox._signing=null;
-   const sdk=supabase.createClient(c.supabaseUrl,c.publishableKey,{global:{fetch:timedFetch},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'mm-guest-probe-'+crypto.randomUUID()}});
+   const sdk=supabase.createClient(c.supabaseUrl,c.publishableKey,{global:{fetch:timedFetch},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:'mm-guest-probe-'+MMCompat.uuid()}});
    sandbox.client=()=>sdk;sandbox.databaseGuest=()=>true;sandbox.guestRecord=()=>record;sandbox.storeGuest=r=>{record=r;};
    await sandbox.ensureGuest();return sandbox;
   },
@@ -116,7 +148,7 @@
   subscribe(refresh,health){
    let running=false,stopped=false,last=Date.now();
    const tick=async()=>{if(running||stopped)return;running=true;try{await refresh();last=Date.now();health?.(true);}catch(e){health?.(false,e);}finally{running=false;}};
-   const ch=this.databaseGuest()?null:this.client().channel('mm-'+crypto.randomUUID()).on('postgres_changes',{event:'*',schema:'public',table:'orders'},tick).on('postgres_changes',{event:'*',schema:'public',table:'reviews'},tick).subscribe(state=>{if(state==='SUBSCRIBED')tick();});
+   const ch=this.databaseGuest()?null:this.client().channel('mm-'+MMCompat.uuid()).on('postgres_changes',{event:'*',schema:'public',table:'orders'},tick).on('postgres_changes',{event:'*',schema:'public',table:'reviews'},tick).subscribe(state=>{if(state==='SUBSCRIBED')tick();});
    const timer=setInterval(()=>{if(Date.now()-last>15000)health?.(false,Error('Давно нет ответа сервера'));tick();},3000);const online=()=>tick();const visible=()=>{if(!document.hidden)tick();};window.addEventListener('online',online);document.addEventListener('visibilitychange',visible);tick();
    return ()=>{stopped=true;clearInterval(timer);if(ch)this.client().removeChannel(ch);window.removeEventListener('online',online);document.removeEventListener('visibilitychange',visible);};
   }

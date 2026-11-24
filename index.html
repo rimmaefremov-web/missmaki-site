@@ -1,4 +1,4 @@
-<!doctype html><html lang="ru"><head><link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48" href="/favicon.ico">
+<!doctype html><html lang="ru"><head><script src="shared/compat.js"></script><link rel="icon" type="image/x-icon" sizes="16x16 32x32 48x48" href="/favicon.ico">
 <link rel="icon" type="image/png" sizes="48x48" href="/missmaki-favicon-48.png">
 <link rel="icon" type="image/png" sizes="96x96" href="/missmaki-favicon-96.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/missmaki-favicon-192.png">
@@ -141,6 +141,7 @@ async function checkoutOnce(){
  const {subtotal,delivery,total}=totals(),button=document.getElementById('send'),status=document.getElementById('status');
  busy=true;button.disabled=true;button.textContent='Отправляем...';status.textContent='';
  try{
+  MMCompat.ensureCheckoutCrypto();
   const items=snapshot.map(item=>{
    const sku=ORDER_SKUS[item.sku];if(!sku)throw Error('Unknown menu item');
    return {...item,sku};
@@ -152,7 +153,7 @@ async function checkoutOnce(){
   if(content.fulfillment==='pickup'){
    let legacyPickupDraft=false;
    try{const draft=JSON.parse(localStorage.getItem('mm-pending-submission'));const saved=JSON.parse(localStorage.getItem('mm-pickup-intent'));legacyPickupDraft=draft?.payload?.fulfillment==='pickup'&&!draft.payload.clientIntent&&/^[a-f0-9-]{36}$/.test(draft.requestId||'');const id=draft?.payload?.fulfillment==='pickup'?draft.payload.clientIntent:saved&&Date.now()-saved.createdAt<7*86400000?saved.id:null;if(/^[a-f0-9-]{36}$/.test(id||''))pickupIntent=id;}catch(e){}
-   if(!legacyPickupDraft){pickupIntent||=crypto.randomUUID();content.clientIntent=pickupIntent;
+   if(!legacyPickupDraft){pickupIntent||=MMCompat.uuid();content.clientIntent=pickupIntent;
     try{localStorage.setItem('mm-pickup-intent',JSON.stringify({id:pickupIntent,createdAt:Date.now()}));}catch(e){}
    }
   }
@@ -162,7 +163,7 @@ async function checkoutOnce(){
   let shared;try{shared=JSON.parse(localStorage.getItem(recordKey))}catch(e){}
   if(shared&&Date.now()-(shared.confirmedAt||shared.createdAt)<(shared.state==='sent'?10*60000:7*86400000)&&/^[a-f0-9-]{36}$/.test(shared.requestId))pending={fingerprint,requestId:shared.requestId};
   if(!pending){try{pending=JSON.parse(sessionStorage.getItem('missmaki-pending-order'))}catch(e){}}
-  if(!pending||pending.fingerprint!==fingerprint||!/^[a-f0-9-]{36}$/.test(pending.requestId))pending={fingerprint,requestId:crypto.randomUUID()};
+  if(!pending||pending.fingerprint!==fingerprint||!/^[a-f0-9-]{36}$/.test(pending.requestId))pending={fingerprint,requestId:MMCompat.uuid()};
   // Store only a digest and ID. Reuse the ID after a lost response; never auto-retry.
   try{
    const now=Date.now();for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key&&key.startsWith('missmaki-order:')){try{const entry=JSON.parse(localStorage.getItem(key));if(now-entry.createdAt>=7*86400000)localStorage.removeItem(key)}catch(e){localStorage.removeItem(key)}}}
@@ -178,7 +179,7 @@ async function checkoutOnce(){
   const pendingOrderId=result.requestId||pending.requestId;pending=null;try{sessionStorage.removeItem('missmaki-pending-order')}catch(e){}
   renderCart();document.getElementById('payment-info').hidden=false;document.getElementById('payment-info').scrollIntoView({behavior:'smooth',block:'center'});status.textContent=(timing==='preorder'?'🍣 Предзаказ отправлен. Ожидаем подтверждения MissMaki…':'🍣 Заказ отправлен. Ожидаем подтверждения MissMaki…');watchOrder(pendingOrderId);
  }catch(e){
-  status.textContent=window.MM?.enabled?'Не удалось подтвердить отправку. Повторите с той же корзиной: дубликат не создастся. '+(e.message||'Проверьте интернет.'):'Не удалось подтвердить заказ. Он мог быть отправлен — свяжитесь с MissMaki перед повторной отправкой.';
+  status.textContent=window.MM?.enabled?'Не удалось подтвердить отправку. Повторите с той же корзиной: дубликат не создастся. '+MMCompat.message(e):'Не удалось подтвердить заказ. Он мог быть отправлен — свяжитесь с MissMaki перед повторной отправкой.';
  }finally{busy=false;button.disabled=!isOpen()&&!isPreorder();button.textContent='Отправить заказ'}
 }
 
