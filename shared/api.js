@@ -3,7 +3,12 @@
 (function(root){
  'use strict';
  // Upgrade only the production hosts; keep local and preview HTTP environments intact.
- if(root.location&&root.location.protocol==='http:'&&/^(www\.)?missmaki\.ru$/i.test(root.location.hostname)){root.location.replace('https://'+root.location.host+root.location.pathname+root.location.search+root.location.hash);}
+ if(root.location&&root.location.protocol==='http:'&&/^(www\.)?missmaki\.ru$/i.test(root.location.hostname)){
+  let target=root;
+  // Upgrade the same-origin kiosk wrapper as well, including an older cached wrapper.
+  try{if(root.top&&root.top!==root&&root.top.location.origin===root.location.origin)target=root.top;}catch(e){}
+  const loc=target.location;loc.replace('https://'+loc.host+loc.pathname+loc.search+loc.hash);
+ }
  function uuid(){
   const c=root.crypto;
   if(c&&typeof c.randomUUID==='function'&&c.randomUUID!==uuid){try{return c.randomUUID();}catch(e){/* CSPRNG fallback below. */}}

@@ -18,6 +18,7 @@ test('customer errors hide technical codes while preserving actionable Russian s
 
 test('only production HTTP pages upgrade to HTTPS and preserve path/query/hash',()=>{
  let next;load(webcrypto,{location:{protocol:'http:',hostname:'missmaki.ru',host:'missmaki.ru',pathname:'/kiosk.html',search:'?a=1',hash:'#order',replace:url=>next=url}});assert.equal(next,'https://missmaki.ru/kiosk.html?a=1#order');
+ const parent={location:{origin:'http://missmaki.ru',host:'missmaki.ru',pathname:'/kiosk.html',search:'?k=1',hash:'',replace:url=>next=url}};load(webcrypto,{top:parent,location:{protocol:'http:',hostname:'missmaki.ru',origin:'http://missmaki.ru',replace:()=>{throw Error('Must upgrade wrapper');}}});assert.equal(next,'https://missmaki.ru/kiosk.html?k=1');
  next=undefined;load(webcrypto,{location:{protocol:'http:',hostname:'localhost',replace:()=>{throw Error('Must not redirect preview');}}});assert.equal(next,undefined);
 });
 
