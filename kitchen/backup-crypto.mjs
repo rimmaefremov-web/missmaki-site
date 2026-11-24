@@ -1,3 +1,4 @@
+import '../shared/compat.js';
 // Local encryption/decryption only. Never sends a file or passphrase to a server.
 const FORMAT='missmaki-encrypted-backup',ITERATIONS=310000;
 const b64=bytes=>{let text='';for(let i=0;i<bytes.length;i+=8192)text+=String.fromCharCode(...bytes.subarray(i,i+8192));return btoa(text);};
@@ -28,7 +29,7 @@ export async function decryptBackup(text,passphrase,project){
  return validate(JSON.parse(new TextDecoder().decode(plain)),project);
 }
 export function restoreSql(data,project){
- validate(data,project);let tag;const json=JSON.stringify(data);do{tag='$mm_'+crypto.randomUUID().replaceAll('-','')+'$';}while(json.includes(tag));
+ validate(data,project);let tag;const json=JSON.stringify(data);do{tag='$mm_'+MMCompat.uuid().replace(/-/g,'')+'$';}while(json.includes(tag));
  return `-- Business records only; same existing database and existing Auth users required.
 -- No deletion or overwriting of existing IDs. Keep a current copy before running.
 begin;

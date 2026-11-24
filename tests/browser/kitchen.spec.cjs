@@ -1,6 +1,7 @@
 const {test,expect}=require('@playwright/test');
 // Browser contract tests use an explicit fake API. These do not prove Supabase deployment.
 async function mock(page,{staff=false,offline=false}={}){
+ await page.addInitScript(()=>Object.defineProperty(crypto,'randomUUID',{value:undefined,configurable:true}));
  await page.addInitScript(({staff,offline})=>{
   window.__fake={staff,offline,status:'new',minutes:null,version:1,reviewStatus:'pending',calls:[]};
   const f=window.__fake;

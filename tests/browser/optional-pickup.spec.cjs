@@ -3,6 +3,7 @@ const {test,expect}=require('@playwright/test');const {PGlite}=require('@electri
 const S='33333333-3333-4333-8333-333333333333';let db,date,queue=Promise.resolve();
 function serial(fn){const p=queue.then(fn);queue=p.then(()=>{},()=>{});return p;}
 async function role(id){await db.exec('reset role');await db.query("select set_config('request.jwt.claim.sub',$1,false)",[id]);await db.exec('set role authenticated');}
+test.beforeEach(async({context})=>{await context.addInitScript(()=>Object.defineProperty(crypto,'randomUUID',{value:undefined,configurable:true}));});
 test.beforeAll(async()=>{
  db=new PGlite();await db.exec("create role anon;create role authenticated;create schema auth;create table auth.users(id uuid primary key);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;create publication supabase_realtime;");
  for(const file of ['001_kitchen.sql','002_catalog.sql','004_review_moderation_idempotency.sql','007_backup_and_test_records.sql','008_pickup_cells.sql','009_optional_pickup_contacts.sql'])await db.exec(fs.readFileSync('supabase/migrations/'+file,'utf8').replace("tm=now() at time zone 'Europe/Moscow';","tm=date_trunc('day',now() at time zone 'Europe/Moscow')+interval '15 hours';"));

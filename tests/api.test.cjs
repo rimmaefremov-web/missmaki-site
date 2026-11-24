@@ -4,7 +4,7 @@ function load(client,extra={}){
  const window={MISSMAKI_CONFIG:{enabled:true,supabaseUrl:'https://fixture-only.supabase.co',publishableKey:'TEST_FIXTURE_ONLY'}};
  const context={window,location:{pathname:'/'},supabase:{createClient(_url,_key,opts){options=opts;return client;}},setTimeout,clearTimeout,setInterval,clearInterval,AbortController,fetch,Date,...extra};
  window.supabase=context.supabase;
- vm.runInNewContext(fs.readFileSync('shared/api.js','utf8'),context);return {api:window.MM,options:()=>options};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('shared/compat.js','utf8'),context);vm.runInContext(fs.readFileSync('shared/api.js','utf8'),context);return {api:window.MM,options:()=>options};
 }
 test('simultaneous first actions share one anonymous sign-in',async()=>{
  let signins=0,release;const gate=new Promise(resolve=>release=resolve);
