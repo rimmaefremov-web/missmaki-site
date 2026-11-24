@@ -137,12 +137,34 @@ test('pickup confirmation shows its permanent cell; scheduled pickup uses the ch
  const ordinary='Ваш заказ подтверждён! 🍣\n\n⏱ Время ожидания: 15 минут\n\n📦 Ячейка самовывоза: №1\n\nВаш заказ будет ждать вас в ячейке №1.\n\nОплата при получении на кассе.\n\nСпасибо, что выбираете MissMaki! ❤️';
  await expect(page.locator('#status')).toHaveText(ordinary);
  await page.evaluate(()=>{Object.assign(window.__fake,{timing:'preorder',pickupNumber:2,requestedDate:'2026-11-05',requestedTime:'18:30:00'});document.dispatchEvent(new Event('visibilitychange'));});
- const preorder='Ваш предзаказ подтверждён! 🍣\n\n📅 Дата получения: 05.11.2026\n\n🕒 Время получения: 18:30\n\n📦 Ячейка самовывоза: №2\n\nВаш заказ будет ждать вас в ячейке №2 к выбранному времени.\n\nОплата при получении на кассе.\n\nСпасибо, что планируете вкусные моменты вместе с MissMaki! ❤️';
+ const preorder='Ваш предзаказ принят! Будет готово к 18:30 05.11.2026. Будем Вас ждать 💚\n\n📦 Ячейка самовывоза: №2\n\nОплата при получении на кассе.';
  await expect(page.locator('#status')).toHaveText(preorder);await expect(page.locator('#status')).not.toContainText('Время ожидания');
  // Restore the server fixture after reload without relying on init-script ordering.
  await page.reload();await page.evaluate(()=>{Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',minutes:15,timing:'preorder',pickupNumber:2,requestedDate:'2026-11-05',requestedTime:'18:30:00'});document.dispatchEvent(new Event('visibilitychange'));});await expect(page.locator('#status')).toHaveText(preorder);
  await page.evaluate(()=>{window.__fake.status='rejected';document.dispatchEvent(new Event('visibilitychange'));});await expect(page.locator('#status')).toHaveText('К сожалению, сейчас мы не можем принять ваш заказ');
 });
 test('kitchen shows the same cell and requested pickup time without release buttons',async({page})=>{
- await mock(page,{staff:true});await page.goto('/kitchen/');await page.evaluate(()=>Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',pickupNumber:6,timing:'preorder',requestedDate:'2026-11-05',requestedTime:'18:30:00'}));await page.locator('#refresh').click();await page.getByRole('button',{name:'Принятые',exact:true}).click();await expect(page.getByText('📦 Ячейка самовывоза: №6',{exact:true})).toBeVisible();await expect(page.getByText('Предзаказ: 2026-11-05 к 18:30:00',{exact:true})).toBeVisible();expect(await page.getByRole('button',{name:/освободить ячейку/i}).count()).toBe(0);
+ await mock(page,{staff:true});await page.goto('/kitchen/');await page.evaluate(()=>Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',pickupNumber:6,timing:'preorder',requestedDate:'2026-11-05',requestedTime:'18:30:00'}));await page.locator('#refresh').click();await page.getByRole('button',{name:'Принятые',exact:true}).click();await expect(page.getByText('📦 Ячейка самовывоза: №6',{exact:true})).toBeVisible();await expect(page.getByText('Дата и время: 05.11.2026 к 18:30',{exact:true})).toBeVisible();expect(await page.getByRole('button',{name:/освободить ячейку/i}).count()).toBe(0);
+});
+
+for(const fulfillment of ['delivery','pickup'])test(`preorder ${fulfillment}: only accept/reject, unchanged schedule and server-success alarm resolution`,async({page})=>{
+ await mock(page,{staff:true});await page.goto('/kitchen/');
+ await page.evaluate(fulfillment=>Object.assign(window.__fake,{fulfillment,timing:'preorder',requestedDate:'2026-11-26',requestedTime:'18:30:00',finalFeatures:true}),fulfillment);await page.locator('#refresh').click();
+ const card=page.locator('.card');await expect(card.getByText('ПРЕДЗАКАЗ',{exact:true})).toBeVisible();await expect(card).toContainText('26.11.2026 к 18:30');await expect(card).toContainText(fulfillment==='pickup'?'Самовывоз':'Доставка');
+ await expect(card.locator('.actions button')).toHaveCount(2);await expect(card.getByRole('button',{name:'Принять',exact:true})).toHaveClass(/preorder-accept/);await expect(card.getByRole('button',{name:'Отклонить',exact:true})).toHaveClass(/preorder-reject/);
+ await page.evaluate(()=>window.__fake.failStatus=true);await card.getByRole('button',{name:'Принять',exact:true}).click();await expect(page.locator('#error')).toContainText('Сервер не принял');await expect(card).toBeVisible();
+ await page.evaluate(()=>window.__fake.failStatus=false);await card.getByRole('button',{name:'Принять',exact:true}).click();await expect(page.locator('#cards .card')).toHaveCount(0);
+ const state=await page.evaluate(()=>({date:__fake.requestedDate,time:__fake.requestedTime,calls:__fake.calls.filter(x=>x.name==='order_status')}));expect(state.date).toBe('2026-11-26');expect(state.time).toBe('18:30:00');expect(state.calls.at(-1).args).toMatchObject({p_status:'accepted',p_minutes:15});
+});
+test('preorder rejection and normal order keep their distinct action controls',async({page})=>{
+ await mock(page,{staff:true});await page.goto('/kitchen/');await page.evaluate(()=>Object.assign(__fake,{timing:'preorder',requestedDate:'2026-11-26',requestedTime:'18:30:00'}));await page.locator('#refresh').click();await page.getByRole('button',{name:'Отклонить',exact:true}).click();await expect(page.locator('.card')).toHaveCount(0);expect(await page.evaluate(()=>__fake.status)).toBe('rejected');
+ await page.evaluate(()=>Object.assign(__fake,{timing:'asap',status:'new'}));await page.locator('#refresh').click();for(const minutes of [15,30,45,60,90,120,150,180])await expect(page.getByRole('button',{name:minutes+' минут',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'30 минут',exact:true}).click();expect(await page.evaluate(()=>__fake.minutes)).toBe(30);
+});
+test('scheduled delivery updates automatically inside customer kiosk menu',async({page})=>{
+ await mock(page);await page.addInitScript(()=>localStorage.setItem('missmaki-active-order','r1'));await page.goto('/kiosk.html');await page.locator('#open-menu').click();
+ const menu=page.frameLocator('iframe[title="Меню и оформление заказа MissMaki"]');await expect(menu.locator('#status')).toContainText('№42');
+ const frame=page.frames().find(f=>f!==page.mainFrame()&&new URL(f.url()).pathname==='/');expect(frame).toBeTruthy();
+ await frame.evaluate(()=>Object.assign(__fake,{status:'accepted',timing:'preorder',fulfillment:'delivery',requestedDate:'2026-11-26',requestedTime:'18:30:00'}));
+ await expect(menu.locator('#status')).toHaveText('Ваш предзаказ принят! Доставим к 18:30 26.11.2026 💚');
 });
