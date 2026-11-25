@@ -189,7 +189,7 @@ test('compact history fits four portrait-tablet cards with quantities, extras an
  await page.evaluate(()=>document.getElementById('cards').scrollIntoView({block:'start',behavior:'instant'}));
  const boxes=await page.locator('.history-card').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y,bottom:r.bottom,width:r.width};}));expect(Math.abs(boxes[0].y-boxes[1].y)).toBeLessThan(2);expect(boxes[1].x).toBeGreaterThan(boxes[0].x);expect(boxes[2].y).toBeGreaterThan(boxes[0].y);for(const b of boxes){expect(b.y).toBeGreaterThanOrEqual(0);expect(b.bottom).toBeLessThanOrEqual(960);}
  expect(await first.locator('.history-number').evaluate(n=>Number(getComputedStyle(n).fontWeight))).toBeGreaterThanOrEqual(700);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
- await page.screenshot({path:'/workspace/artifacts/kitchen-history-portrait.png'});
+ await page.screenshot({path:test.info().outputPath('kitchen-history-portrait.png')});
  await page.setViewportSize({width:390,height:844});const cols=await page.locator('#cards').evaluate(n=>getComputedStyle(n).gridTemplateColumns.split(' ').length);expect(cols).toBe(1);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 test('history disclosure reveals all items and actions, survives updates, and leaves operational tabs unchanged',async({page})=>{
@@ -203,7 +203,7 @@ test('waiting screen is accessible, reacquires wake lock, recovers status and ke
   localStorage.setItem('missmaki-active-order','r1');window.__wake={requests:0,releases:0,deny:true};
   Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{async request(){__wake.requests++;if(__wake.deny)throw Error('Not allowed');const lock=new EventTarget();lock.release=async()=>{__wake.releases++;lock.dispatchEvent(new Event('release'));};window.__lock=lock;return lock;}}});
  });
- await page.goto('/');const status=page.locator('#status');await expect(status).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.');await expect(status).toHaveAttribute('data-waiting','true');await expect(status).toHaveCSS('background-color','rgb(221, 243, 216)');await expect(status).toHaveCSS('color','rgb(0, 0, 0)');expect(await status.evaluate(n=>getComputedStyle(n,'::after').animationName)).toBe('mm-order-wait');await status.screenshot({path:'/workspace/artifacts/order-waiting-'+test.info().project.name+'.png'});
+ await page.goto('/');const status=page.locator('#status');await expect(status).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.');await expect(status).toHaveAttribute('data-waiting','true');await expect(status).toHaveCSS('background-color','rgb(221, 243, 216)');await expect(status).toHaveCSS('color','rgb(0, 0, 0)');expect(await status.evaluate(n=>getComputedStyle(n,'::after').animationName)).toBe('mm-order-wait');await status.screenshot({path:test.info().outputPath('order-waiting.png')});
  await page.evaluate(()=>{__wake.deny=false;document.dispatchEvent(new Event('visibilitychange'));});await expect.poll(()=>page.evaluate(()=>!!window.__lock)).toBe(true);
  await page.evaluate(()=>{__lock.release();document.dispatchEvent(new Event('visibilitychange'));});await expect.poll(()=>page.evaluate(()=>__wake.requests)).toBeGreaterThan(2);
  await page.evaluate(()=>{__fake.offline=true;window.dispatchEvent(new Event('online'));});await expect(status).toContainText('Нет связи');
