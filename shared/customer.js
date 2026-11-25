@@ -1,9 +1,31 @@
 /* Loaded after the existing site script. Only enabled configuration changes transport. */
 if(window.MM?.enabled){
  const originalCheckout=checkout;
+ const screen=document.getElementById('status'),paymentInfo=document.getElementById('payment-info');
+ for(const n of paymentInfo.querySelectorAll(':scope > h3,:scope > p'))n.hidden=true;
+ screen.after(paymentInfo);
+ const screenStyle=document.createElement('style');screenStyle.textContent=`
+ #status.order-screen{display:block;background:#DDF3D8;color:#000!important;font-size:clamp(21px,4.8vw,30px);font-weight:800;line-height:1.4;text-align:center;border-radius:20px;padding:22px 16px;margin:20px 0;scroll-margin-top:76px;scroll-margin-bottom:100px;white-space:pre-line;overflow-wrap:anywhere}
+ #status.order-screen::after{content:none}
+ #status.order-screen[data-waiting="true"]::after{content:"";display:block;width:38px;height:38px;margin:16px auto 0;border:5px solid #0003;border-top-color:#000;border-radius:50%;animation:mm-order-wait 1.2s linear infinite}
+ @keyframes mm-order-wait{to{transform:rotate(360deg)}}
+ @media(prefers-reduced-motion:reduce){#status.order-screen[data-waiting="true"]::after{animation-duration:3s}}
+ `;document.head.append(screenStyle);
+ let waiting=false,wake,wakeRequest=false,lastOrder,watchVersion=0;
+ async function keepAwake(){
+  if(!waiting||document.hidden||wake||wakeRequest||!navigator.wakeLock?.request)return;
+  wakeRequest=true;try{const lock=await navigator.wakeLock.request('screen');if(!waiting||document.hidden){await lock.release();return;}wake=lock;lock.addEventListener('release',()=>{if(wake===lock)wake=null;});}catch(e){}finally{wakeRequest=false;}
+ }
+ function waitState(value){waiting=value;screen.dataset.waiting=String(value);document.documentElement.dataset.mmOrderWaiting=String(value);if(value)keepAwake();else if(wake){const lock=wake;wake=null;lock.release().catch(()=>{});}}
+ function showOrder(data){const changed=lastOrder?.status!==data.status;lastOrder=data;screen.classList.add('order-screen');const message=MM.orderMessage(data);if(screen.textContent!==message)screen.textContent=message;waitState(data.status==='new');paymentInfo.hidden=data.status==='rejected';document.getElementById('decision').style.display='none';if(changed)screen.scrollIntoView({behavior:'smooth',block:'start'});}
+ window.MMOrderScreen={sent(){showOrder(lastOrder||{status:'new'});screen.scrollIntoView({behavior:'smooth',block:'start'});}};
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)keepAwake();});
+ window.addEventListener('pageshow',()=>{keepAwake();document.dispatchEvent(new Event('visibilitychange'));});
+ window.addEventListener('pointerdown',()=>{if(waiting)keepAwake();},{passive:true});
+
  let stopWatching,lastSubmissionError;
  submit=async order=>{
-  lastSubmissionError=null;
+  lastSubmissionError=null;lastOrder=null;waitState(true);
   await MM.customer();
   const {requestId,origin,...payload}=order;
   localStorage.setItem('mm-pending-submission',JSON.stringify({requestId,payload}));
@@ -14,24 +36,21 @@ if(window.MM?.enabled){
   if(result?.ok!==true||typeof result.id!=='string'||!result.id||!Number.isSafeInteger(Number(result.number))||Number(result.number)<1)throw Error('Сервер не подтвердил сохранение заказа. Повторите отправку с прежней корзиной.');
   localStorage.removeItem('mm-pending-submission');
   return result;
-  }catch(e){lastSubmissionError=MMCompat.message(e);throw e;}
+  }catch(e){lastSubmissionError=MMCompat.message(e);if(!lastOrder)waitState(false);throw e;}
  };
  jsonpGet=async params=>{await MM.customer();return MM.rpc('availability',{p_date:params.date,p_time:params.time});};
  checkout=async()=>{try{MMCompat.ensureCheckoutCrypto();await MM.customer();await originalCheckout();}catch(e){document.getElementById('status').textContent=MMCompat.message(e);}};
  watchOrder=id=>{
   if(!id)return;
   try{localStorage.setItem('missmaki-active-order',id);}catch(e){}
-  stopWatching?.();
+  stopWatching?.();if(!lastOrder)waitState(true);const version=++watchVersion;
   stopWatching=MM.subscribe(async()=>{
-   const data=await MM.order(id);
-   if(!data){document.getElementById('status').textContent=lastSubmissionError?'Не удалось подтвердить отправку. '+lastSubmissionError+' Повторите с той же корзиной.':'Заказ пока не найден в базе. Если отправка завершилась ошибкой, повторите с той же корзиной.';return;}
-   const msg=MM.orderMessage(data);
-   document.getElementById('status').style.whiteSpace='pre-line';
-   document.getElementById('status').textContent=msg;
-   document.getElementById('payment-info').hidden=false;
-   document.getElementById('decision').style.display='none';
-  },ok=>{if(!ok)document.getElementById('status').textContent='Нет связи с кухней. Сохранённый заказ проверим при восстановлении интернета. Не отправляйте новый заказ.';});
+   const data=await MM.order(id);if(version!==watchVersion)return;
+   if(!data){if(!lastOrder)screen.textContent=lastSubmissionError?'Не удалось подтвердить отправку. '+lastSubmissionError+' Повторите с той же корзиной.':'Проверяем сохранение заказа. Не отправляйте новый заказ.';return;}
+   showOrder(data);
+  },ok=>{if(!ok&&version===watchVersion&&(!lastOrder||lastOrder.status==='new')){screen.textContent=(lastOrder?MM.orderMessage(lastOrder)+'\n\n':'')+'Нет связи с кухней. Сохранённый заказ проверим при восстановлении интернета. Не отправляйте новый заказ.';}});
  };
+
  const form=document.getElementById('review-form');
  const photo=document.getElementById('review-photos');photo.disabled=true;photo.closest('label').hidden=true;
  const consent=document.createElement('label');consent.style.cssText='display:flex;gap:10px;align-items:start;margin:16px 0';

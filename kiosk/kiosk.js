@@ -49,6 +49,7 @@ function showInformation(event) {
 
 function canReturnToSplash() {
   const page = frame.contentDocument;
+  if (page?.documentElement.dataset.mmOrderWaiting === 'true') return false;
   const cart = page?.getElementById('cart');
   const send = page?.getElementById('send');
   // The live menu renders quantity buttons only for products in the cart.
