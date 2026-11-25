@@ -129,7 +129,7 @@ test('failed or malformed order submission never claims success and retains the 
 test('test orders leave operational queue without deletion and test reviews remain visible to staff',async({page})=>{
  await mock(page,{staff:true});page.on('dialog',d=>d.accept());await page.goto('/kitchen/');await page.evaluate(()=>window.__fake.finalFeatures=true);await page.locator('#logout').click();await page.locator('#email').fill('admin@example.invalid');await page.locator('#password').fill('fixture-password');await page.getByRole('button',{name:'Войти',exact:true}).click();await expect(page.getByRole('heading',{name:/Заказ №42/})).toBeVisible();
  await page.getByRole('button',{name:'Пометить как тест',exact:true}).click();await expect(page.getByRole('heading',{name:/Заказ №42/})).toHaveCount(0);await expect(page.locator('#summary')).toContainText('Новых заказов: 0');
- await page.getByRole('button',{name:'История заказов',exact:true}).click();await expect(page.getByText('ТЕСТ — НЕ ГОТОВИТЬ',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Отзывы',exact:true}).click();await page.getByRole('button',{name:'Пометить как тест',exact:true}).click();await expect(page.getByRole('button',{name:'Снять отметку теста',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'История заказов',exact:true}).click();await page.locator('.history-summary').click();await expect(page.getByText('ТЕСТ — НЕ ГОТОВИТЬ',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Отзывы',exact:true}).click();await page.getByRole('button',{name:'Пометить как тест',exact:true}).click();await expect(page.getByRole('button',{name:'Снять отметку теста',exact:true})).toBeVisible();
 });
 
 test('pickup confirmation shows its permanent cell; scheduled pickup uses the chosen date and time after reload',async({page})=>{
@@ -168,4 +168,32 @@ test('scheduled delivery updates automatically inside customer kiosk menu',async
  const frame=page.frames().find(f=>f!==page.mainFrame()&&new URL(f.url()).pathname==='/');expect(frame).toBeTruthy();
  await frame.evaluate(()=>Object.assign(__fake,{status:'accepted',timing:'preorder',fulfillment:'delivery',requestedDate:'2026-11-26',requestedTime:'18:30:00'}));
  await expect(menu.locator('#status')).toHaveText('Ваш предзаказ принят! Доставим к 18:30 26.11.2026 💚');
+});
+
+async function historyFixture(page){
+ await mock(page,{staff:true});await page.goto('/kitchen/');await page.evaluate(()=>{
+  const items=[{name:'Филадельфия',quantity:2,price:470},{name:'Соевый соус',quantity:3,price:30},{name:'Имбирь',quantity:2,price:10},{name:'Васаби',quantity:2,price:10},{name:'Палочки',quantity:4,price:10}];
+  window.__fake.orderStates=[
+   {id:'h101',number:101,created_at:'2026-11-25T08:00:00Z',status:'completed',items:[...items,...Array.from({length:7},(_,i)=>({name:'Дополнительный ингредиент '+i,quantity:i+1,price:10}))],comment:'Большой заказ: полностью показать все дополнения'},
+   {id:'h104',number:104,created_at:'2026-11-25T11:00:00Z',updated_at:'2026-11-25T11:05:00Z',status:'accepted',minutes:30,fulfillment:'delivery',items,comment:'Без огурца'},
+   {id:'h102',number:102,created_at:'2026-11-25T09:00:00Z',status:'new',fulfillment:'pickup',items:items.slice(0,4),comment:'Без лука'},
+   {id:'h103',number:103,created_at:'2026-11-25T10:00:00Z',status:'accepted',fulfillment:'pickup',timing:'preorder',requested_date:'2026-11-26',requested_time:'18:30:00',pickup_number:4,items:items.slice(0,3),comment:'Позвоним при получении'}
+  ];
+ });await page.getByRole('button',{name:'История заказов',exact:true}).click();await expect(page.locator('.history-card')).toHaveCount(4);
+}
+test('compact history fits four portrait-tablet cards with quantities, extras and latest-first ordering',async({page})=>{
+ await page.setViewportSize({width:600,height:960});await historyFixture(page);
+ await expect(page.locator('.history-number')).toHaveText(['№104','№103','№102','№101']);
+ const first=page.locator('.history-summary').first();await expect(first).toContainText('Соевый соус');await expect(first).toContainText('Палочки');await expect(first).toContainText('×4');await expect(first).toContainText('Без огурца');await expect(first).toContainText('1140 ₽');await expect(first).toContainText('≈ 14:35');
+ await expect(page.locator('.history-summary').nth(1)).toContainText('ПРЕДЗАКАЗ');await expect(page.locator('.history-summary').nth(1)).toContainText('26.11.2026 к 18:30');
+ await page.evaluate(()=>document.getElementById('cards').scrollIntoView({block:'start',behavior:'instant'}));
+ const boxes=await page.locator('.history-card').evaluateAll(nodes=>nodes.map(n=>{const r=n.getBoundingClientRect();return {x:r.x,y:r.y,bottom:r.bottom,width:r.width};}));expect(Math.abs(boxes[0].y-boxes[1].y)).toBeLessThan(2);expect(boxes[1].x).toBeGreaterThan(boxes[0].x);expect(boxes[2].y).toBeGreaterThan(boxes[0].y);for(const b of boxes){expect(b.y).toBeGreaterThanOrEqual(0);expect(b.bottom).toBeLessThanOrEqual(960);}
+ expect(await first.locator('.history-number').evaluate(n=>Number(getComputedStyle(n).fontWeight))).toBeGreaterThanOrEqual(700);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:'/workspace/artifacts/kitchen-history-portrait.png'});
+ await page.setViewportSize({width:390,height:844});const cols=await page.locator('#cards').evaluate(n=>getComputedStyle(n).gridTemplateColumns.split(' ').length);expect(cols).toBe(1);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+test('history disclosure reveals all items and actions, survives updates, and leaves operational tabs unchanged',async({page})=>{
+ await page.setViewportSize({width:600,height:960});await historyFixture(page);const large=page.locator('.history-card[data-order-id="h101"]');await expect(large.locator('.history-hint')).toContainText('Ещё 6 поз.');await large.locator(':scope > summary').click();await expect(large.locator('.history-full')).toContainText('Дополнительный ингредиент 6 × 7');for(const m of [15,30,45,60,90,120,150,180])await expect(large.getByRole('button',{name:m+' минут',exact:true})).toBeVisible();
+ expect(await page.evaluate(()=>__fake.calls.filter(x=>x.name==='order_status').length)).toBe(0);await page.evaluate(()=>__fake.orderStates.find(x=>x.id==='h104').comment='Обновлённый комментарий');await page.locator('#refresh').click();await expect(large).toHaveAttribute('open','');await large.locator(':scope > summary').focus();await page.keyboard.press('Enter');await expect(large).not.toHaveAttribute('open','');
+ await page.getByRole('button',{name:'Новые',exact:true}).click();await expect(page.locator('#cards')).not.toHaveClass(/history-grid/);await expect(page.locator('.history-card')).toHaveCount(0);const card=page.locator('.card');expect(await card.evaluate(n=>getComputedStyle(n).paddingTop)).toBe('22px');expect(await card.locator('h2').evaluate(n=>getComputedStyle(n).fontSize)).toBe('24px');for(const m of [15,30,45,60,90,120,150,180])await expect(card.getByRole('button',{name:m+' минут',exact:true})).toBeVisible();await card.getByRole('button',{name:'15 минут',exact:true}).click();expect(await page.evaluate(()=>__fake.orderStates.find(x=>x.id==='h102').status)).toBe('accepted');
 });
