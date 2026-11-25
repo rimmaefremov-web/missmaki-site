@@ -3,6 +3,7 @@
  const $=id=>document.getElementById(id),times=[15,30,45,60,90,120,150,180];
  const labels={new:'Новый',accepted:'Принят',rejected:'Отклонён',completed:'Выполнен',pending:'Ожидает модерации',approved:'Опубликован',test:'Тестовая запись',regular:'Обычная запись'};
  let tab='new',limit=100,orders=[],reviews=[],stop,sessionId,refreshing=false,pendingRefresh=false,queueVersion=0,authorized=false,mutation=false,renderedKey='',sessionEpoch=0,finalFeatures=false;
+ const expandedHistory=new Set();
  const error=e=>{$('error').textContent=e?.message||String(e);};
  const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
  const health=ok=>{const n=$('connection');n.textContent=ok?'Соединение есть · '+new Date().toLocaleTimeString('ru-RU'):'Нет соединения. Новые заказы невозможно получить. Проверяем повторно…';n.className=ok?'online':'warning';};
@@ -32,10 +33,30 @@
  }
  function button(text,fn,cls,disabled=false){const b=el('button',text,cls);b.disabled=mutation||disabled;b.onclick=()=>act(fn);return b;}
  async function act(fn){if(mutation)return;mutation=true;render();try{await fn();await refresh();}catch(e){error(e);}finally{mutation=false;render();}}
+ function historyCard(r,fullCard){
+  const shell=el('details',undefined,'history-card '+r.status),summary=el('summary',undefined,'history-summary');
+  shell.dataset.orderId=r.id;shell.open=expandedHistory.has(r.id);
+  const heading=el('span',undefined,'history-heading');heading.append(el('strong',`№${r.number}`,'history-number'),el('span',labels[r.status]||r.status,'history-status'));summary.append(heading);
+  const created=new Date(r.created_at);summary.append(el('span',Number.isFinite(created.getTime())?created.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Moscow'}):'','history-created'));
+  if(r.is_test)summary.append(el('strong','ТЕСТ','history-test'));
+  if(r.timing==='preorder')summary.append(el('strong','ПРЕДЗАКАЗ','history-preorder'));
+  let ready;
+  if(r.timing==='preorder')ready=(r.requested_date||'').split('-').reverse().join('.')+' к '+(r.requested_time||'').slice(0,5);
+  else if(r.minutes){const accepted=new Date(r.updated_at);ready=`${r.minutes} мин`;if(r.status==='accepted'&&Number.isFinite(accepted.getTime()))ready+=' · ≈ '+new Date(accepted.getTime()+r.minutes*60000).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Moscow'});}
+  else ready=r.status==='new'?'Ожидает подтверждения':r.status==='completed'?'Выполнен':r.status==='rejected'?'Отклонён':'Нет отметки времени';
+  summary.append(el('span',(r.fulfillment==='pickup'?'Самовывоз':'Доставка')+' · '+ready,'history-receiving'));
+  const items=Array.isArray(r.items)?r.items:[],list=el('span',undefined,'history-items');
+  for(const item of items.slice(0,6)){const line=el('span',undefined,'history-item');line.append(el('span',item.name),el('strong',`×${item.quantity}`));list.append(line);}summary.append(list);
+  const amount=el('span',undefined,'history-amount');amount.append(el('strong',`${r.total} ₽`));if(r.pickup_number)amount.append(el('span',`Ячейка №${r.pickup_number}`));summary.append(amount);
+  if((r.comment||'').trim())summary.append(el('span','Комментарий: '+r.comment,'history-comment'));
+  const hint=el('span',undefined,'history-hint');const updateHint=()=>{hint.textContent=shell.open?'Свернуть':items.length>6?`Ещё ${items.length-6} поз. · Нажмите для полного состава`:'Нажмите для полной информации';};updateHint();summary.append(hint);
+  const body=el('div',undefined,'history-full');body.append(fullCard);shell.append(summary,body);
+  shell.addEventListener('toggle',()=>{if(!shell.isConnected)return;if(shell.open)expandedHistory.add(r.id);else expandedHistory.delete(r.id);updateHint();});return shell;
+ }
  function render(){
   const key=JSON.stringify({tab,limit,orders,reviews,mutation});if(key===renderedKey)return;renderedKey=key;
-  const cards=$('cards');cards.replaceChildren();document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===tab)));
-  const rows=tab==='reviews'?reviews:tab==='history'?orders:orders.filter(x=>x.status===tab&&!x.is_test);
+  const cards=$('cards');cards.classList.toggle('history-grid',tab==='history');cards.replaceChildren();document.querySelectorAll('[data-tab]').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===tab)));
+  const rows=tab==='reviews'?reviews:tab==='history'?[...orders].sort((a,b)=>(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)||Number(b.number)-Number(a.number)):orders.filter(x=>x.status===tab&&!x.is_test);
   $('summary').textContent=`Новых заказов: ${orders.filter(x=>x.status==='new'&&!x.is_test).length}. Показано: ${rows.length}.`;
   $('more').hidden=!['history','reviews','accepted','rejected'].includes(tab)||rows.length<limit;
   for(const r of rows){
@@ -66,11 +87,11 @@
    }
    if(finalFeatures&&!(r.timing==='preorder'&&tab==='new'))actions.append(button(r.is_test?'Снять отметку теста':'Пометить как тест',async()=>{if(!window.confirm(r.is_test?'Вернуть запись в обычные?':'Пометить запись как тестовую? Отзыв будет скрыт от посетителей, данные сохранятся.'))return;await MM.rpc('set_test_record',{p_entity:review?'review':'order',p_id:r.id,p_test:!r.is_test});}));
    card.append(actions);
-   const audit=el('details');audit.append(el('summary','История изменений'));const log=el('p','Нажмите, чтобы загрузить','audit');audit.append(log);audit.addEventListener('toggle',async()=>{if(!audit.open)return;try{const {data,error:e}=await MM.client().from('audit').select('created_at,old_status,new_status,minutes').eq('entity_id',r.id).order('created_at');if(e)throw e;log.textContent=data.map(x=>`${new Date(x.created_at).toLocaleString('ru-RU')}: ${labels[x.old_status]||'Создан'} → ${labels[x.new_status]||x.new_status}${x.minutes&&r.timing!=='preorder'?' · '+x.minutes+' мин':''}`).join('\n');}catch(e){log.textContent=e.message;}});card.append(audit);cards.append(card);
+   const audit=el('details');audit.append(el('summary','История изменений'));const log=el('p','Нажмите, чтобы загрузить','audit');audit.append(log);audit.addEventListener('toggle',async()=>{if(!audit.open)return;try{const {data,error:e}=await MM.client().from('audit').select('created_at,old_status,new_status,minutes').eq('entity_id',r.id).order('created_at');if(e)throw e;log.textContent=data.map(x=>`${new Date(x.created_at).toLocaleString('ru-RU')}: ${labels[x.old_status]||'Создан'} → ${labels[x.new_status]||x.new_status}${x.minutes&&r.timing!=='preorder'?' · '+x.minutes+' мин':''}`).join('\n');}catch(e){log.textContent=e.message;}});card.append(audit);cards.append(tab==='history'?historyCard(r,card):card);
   }
  }
  async function session(session){
-  const id=session?.user.id;if(id&&id===sessionId&&authorized)return;const epoch=++sessionEpoch;sessionId=id;stop?.();authorized=false;orders=[];reviews=[];alarm.setPending([]);$('cards').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;
+  const id=session?.user.id;if(id&&id===sessionId&&authorized)return;const epoch=++sessionEpoch;sessionId=id;expandedHistory.clear();stop?.();authorized=false;orders=[];reviews=[];alarm.setPending([]);$('cards').replaceChildren();$('workspace').hidden=true;$('login').hidden=false;
   if(!session){health(false);return;}
   try{const member=await MM.rpc('is_staff');if(epoch!==sessionEpoch)return;if(!member)throw Error('Доступ только для сотрудников. Обратитесь к владельцу');try{const capabilities=await MM.rpc('kitchen_capabilities');finalFeatures=capabilities?.testRecords===true;}catch(e){if(e.code!=='PGRST202')throw e;}if(epoch!==sessionEpoch)return;authorized=true;$('workspace').hidden=false;$('login').hidden=true;stop=MM.subscribe(refresh,(ok,e)=>{health(ok);if(e)error(e);});}catch(e){error(e);}
  }
