@@ -28,8 +28,8 @@ test('connection failure warns and recovers',async({page})=>{await mock(page,{st
 test('customer live acceptance, rejected review stays pending, no legacy requests',async({page})=>{
  await mock(page);let legacy=[];page.on('request',r=>{if(/script.google|telegram/.test(r.url()))legacy.push(r.url());});
  await page.addInitScript(()=>localStorage.setItem('missmaki-active-order','r1'));
- await page.goto('/');await expect(page.locator('#status')).toContainText('№42');
- await page.evaluate(()=>{window.__fake.status='accepted';window.__fake.minutes=15;});await expect(page.locator('#status')).toHaveText('Ваш заказ №42 принят! Время ожидания — 15 минут');
+ await page.goto('/');await expect(page.locator('#status')).toContainText('ВАШ ЗАКАЗ ОТПРАВЛЕН!');
+ await page.evaluate(()=>{window.__fake.status='accepted';window.__fake.minutes=15;});await expect(page.locator('#status')).toHaveText('ВАШ ЗАКАЗ ПРИНЯТ!\nДоставим в течение 15 минут.');
  await page.evaluate(()=>window.__fake.reviewStatus='rejected');await expect(page.locator('#review-status')).toHaveText('Ваш отзыв ожидает подтверждения');await expect(page.locator('#published-reviews')).toBeEmpty();
  await page.reload();await expect(page.locator('#review-status')).toHaveText('Ваш отзыв ожидает подтверждения');await expect(page.locator('#published-reviews')).toBeEmpty();expect(legacy).toEqual([]);
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -39,7 +39,7 @@ test('lost order response restores checkout after reload and reuses request ID',
  await mock(page);await page.goto('/');await page.evaluate(()=>{isOpen=()=>true;add(1);document.querySelector('input[name="fulfillment"][value="pickup"]').checked=true;setMethod();updateHours();window.__fake.failOrderOnce=true;});
  await page.locator('#name').fill('Покупатель');await page.locator('#phone').fill('+79530000000');await page.locator('#send').focus();await page.keyboard.press('Enter');
  await expect.poll(()=>page.evaluate(()=>!!localStorage.getItem('mm-pending-submission'))).toBe(true);
- await expect(page.locator('#status')).toContainText('№42');
+ await expect(page.locator('#status')).toContainText('ВАШ ЗАКАЗ ОТПРАВЛЕН!');
  const request=await page.evaluate(()=>JSON.parse(localStorage.getItem('mm-pending-submission')).requestId);
  await page.reload();await page.evaluate(()=>{isOpen=()=>true;updateHours();});await expect(page.locator('#name')).toHaveValue('Покупатель');await expect(page.locator('#cart')).toContainText('Филадельфия');await page.locator('#send').focus();await page.keyboard.press('Enter');
  await expect.poll(()=>page.evaluate(()=>localStorage.getItem('mm-pending-submission'))).toBeNull();
@@ -135,14 +135,14 @@ test('test orders leave operational queue without deletion and test reviews rema
 test('pickup confirmation shows its permanent cell; scheduled pickup uses the chosen date and time after reload',async({page})=>{
  await mock(page);await page.addInitScript(()=>localStorage.setItem('missmaki-active-order','r1'));await page.goto('/');
  await page.evaluate(()=>{Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',minutes:15,pickupNumber:1});document.dispatchEvent(new Event('visibilitychange'));});
- const ordinary='Ваш заказ подтверждён! 🍣\n\n⏱ Время ожидания: 15 минут\n\n📦 Ячейка самовывоза: №1\n\nВаш заказ будет ждать вас в ячейке №1.\n\nОплата при получении на кассе.\n\nСпасибо, что выбираете MissMaki! ❤️';
+ const ordinary='ВАШ ЗАКАЗ ПРИНЯТ!\nБудет готов через 15 минут.\nБудем Вас ждать!\n\nЯчейка самовывоза: №1\nОплата при получении на кассе.';
  await expect(page.locator('#status')).toHaveText(ordinary);
  await page.evaluate(()=>{Object.assign(window.__fake,{timing:'preorder',pickupNumber:2,requestedDate:'2026-11-05',requestedTime:'18:30:00'});document.dispatchEvent(new Event('visibilitychange'));});
- const preorder='Ваш предзаказ принят! Будет готово к 18:30 05.11.2026. Будем Вас ждать 💚\n\n📦 Ячейка самовывоза: №2\n\nОплата при получении на кассе.';
+ const preorder='ВАШ ПРЕДЗАКАЗ ПРИНЯТ!\nБудет готов к 18:30 05.11.2026.\nБудем Вас ждать!\n\nЯчейка самовывоза: №2\nОплата при получении на кассе.';
  await expect(page.locator('#status')).toHaveText(preorder);await expect(page.locator('#status')).not.toContainText('Время ожидания');
  // Restore the server fixture after reload without relying on init-script ordering.
  await page.reload();await page.evaluate(()=>{Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',minutes:15,timing:'preorder',pickupNumber:2,requestedDate:'2026-11-05',requestedTime:'18:30:00'});document.dispatchEvent(new Event('visibilitychange'));});await expect(page.locator('#status')).toHaveText(preorder);
- await page.evaluate(()=>{window.__fake.status='rejected';document.dispatchEvent(new Event('visibilitychange'));});await expect(page.locator('#status')).toHaveText('К сожалению, сейчас мы не можем принять ваш заказ');
+ await page.evaluate(()=>{window.__fake.status='rejected';document.dispatchEvent(new Event('visibilitychange'));});await expect(page.locator('#status')).toHaveText('ВАШ ЗАКАЗ НЕ ПРИНЯТ.\nК сожалению, сейчас мы не можем выполнить Ваш заказ. Приносим свои извинения.');
 });
 test('kitchen shows the same cell and requested pickup time without release buttons',async({page})=>{
  await mock(page,{staff:true});await page.goto('/kitchen/');await page.evaluate(()=>Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',pickupNumber:6,timing:'preorder',requestedDate:'2026-11-05',requestedTime:'18:30:00'}));await page.locator('#refresh').click();await page.getByRole('button',{name:'Принятые',exact:true}).click();await expect(page.getByText('📦 Ячейка самовывоза: №6',{exact:true})).toBeVisible();await expect(page.getByText('Дата и время: 05.11.2026 к 18:30',{exact:true})).toBeVisible();expect(await page.getByRole('button',{name:/освободить ячейку/i}).count()).toBe(0);
@@ -164,10 +164,10 @@ test('preorder rejection and normal order keep their distinct action controls',a
 });
 test('scheduled delivery updates automatically inside customer kiosk menu',async({page})=>{
  await mock(page);await page.addInitScript(()=>localStorage.setItem('missmaki-active-order','r1'));await page.goto('/kiosk.html');await page.locator('#open-menu').click();
- const menu=page.frameLocator('iframe[title="Меню и оформление заказа MissMaki"]');await expect(menu.locator('#status')).toContainText('№42');
+ const menu=page.frameLocator('iframe[title="Меню и оформление заказа MissMaki"]');await expect(menu.locator('#status')).toContainText('ВАШ ЗАКАЗ ОТПРАВЛЕН!');
  const frame=page.frames().find(f=>f!==page.mainFrame()&&new URL(f.url()).pathname==='/');expect(frame).toBeTruthy();
  await frame.evaluate(()=>Object.assign(__fake,{status:'accepted',timing:'preorder',fulfillment:'delivery',requestedDate:'2026-11-26',requestedTime:'18:30:00'}));
- await expect(menu.locator('#status')).toHaveText('Ваш предзаказ принят! Доставим к 18:30 26.11.2026 💚');
+ await expect(menu.locator('#status')).toHaveText('ВАШ ПРЕДЗАКАЗ ПРИНЯТ!\nДоставим к 18:30 26.11.2026.');
 });
 
 async function historyFixture(page){
@@ -196,4 +196,24 @@ test('history disclosure reveals all items and actions, survives updates, and le
  await page.setViewportSize({width:600,height:960});await historyFixture(page);const large=page.locator('.history-card[data-order-id="h101"]');await expect(large.locator('.history-hint')).toContainText('Ещё 6 поз.');await large.locator(':scope > summary').click();await expect(large.locator('.history-full')).toContainText('Дополнительный ингредиент 6 × 7');for(const m of [15,30,45,60,90,120,150,180])await expect(large.getByRole('button',{name:m+' минут',exact:true})).toBeVisible();
  expect(await page.evaluate(()=>__fake.calls.filter(x=>x.name==='order_status').length)).toBe(0);await page.evaluate(()=>__fake.orderStates.find(x=>x.id==='h104').comment='Обновлённый комментарий');await page.locator('#refresh').click();await expect(large).toHaveAttribute('open','');await large.locator(':scope > summary').focus();await page.keyboard.press('Enter');await expect(large).not.toHaveAttribute('open','');
  await page.getByRole('button',{name:'Новые',exact:true}).click();await expect(page.locator('#cards')).not.toHaveClass(/history-grid/);await expect(page.locator('.history-card')).toHaveCount(0);const card=page.locator('.card');expect(await card.evaluate(n=>getComputedStyle(n).paddingTop)).toBe('22px');expect(await card.locator('h2').evaluate(n=>getComputedStyle(n).fontSize)).toBe('24px');for(const m of [15,30,45,60,90,120,150,180])await expect(card.getByRole('button',{name:m+' минут',exact:true})).toBeVisible();await card.getByRole('button',{name:'15 минут',exact:true}).click();expect(await page.evaluate(()=>__fake.orderStates.find(x=>x.id==='h102').status)).toBe('accepted');
+});
+
+test('waiting screen is accessible, reacquires wake lock, recovers status and keeps confirmation offline',async({page})=>{
+ await mock(page);await page.addInitScript(()=>{
+  localStorage.setItem('missmaki-active-order','r1');window.__wake={requests:0,releases:0,deny:true};
+  Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{async request(){__wake.requests++;if(__wake.deny)throw Error('Not allowed');const lock=new EventTarget();lock.release=async()=>{__wake.releases++;lock.dispatchEvent(new Event('release'));};window.__lock=lock;return lock;}}});
+ });
+ await page.goto('/');const status=page.locator('#status');await expect(status).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.');await expect(status).toHaveAttribute('data-waiting','true');await expect(status).toHaveCSS('background-color','rgb(221, 243, 216)');await expect(status).toHaveCSS('color','rgb(0, 0, 0)');expect(await status.evaluate(n=>getComputedStyle(n,'::after').animationName)).toBe('mm-order-wait');await status.screenshot({path:'/workspace/artifacts/order-waiting-'+test.info().project.name+'.png'});
+ await page.evaluate(()=>{__wake.deny=false;document.dispatchEvent(new Event('visibilitychange'));});await expect.poll(()=>page.evaluate(()=>!!window.__lock)).toBe(true);
+ await page.evaluate(()=>{__lock.release();document.dispatchEvent(new Event('visibilitychange'));});await expect.poll(()=>page.evaluate(()=>__wake.requests)).toBeGreaterThan(2);
+ await page.evaluate(()=>{__fake.offline=true;window.dispatchEvent(new Event('online'));});await expect(status).toContainText('Нет связи');
+ await page.evaluate(()=>{__fake.offline=false;__fake.status='accepted';__fake.minutes=45;window.dispatchEvent(new Event('pageshow'));});await expect(status).toHaveText('ВАШ ЗАКАЗ ПРИНЯТ!\nДоставим в течение 45 минут.');await expect(status).toHaveAttribute('data-waiting','false');await expect.poll(()=>page.evaluate(()=>__wake.releases)).toBeGreaterThan(1);
+ await page.evaluate(()=>{__fake.offline=true;window.dispatchEvent(new Event('online'));});await page.waitForTimeout(100);await expect(status).toContainText('Доставим в течение 45 минут.');expect(await status.evaluate(n=>getComputedStyle(n,'::after').content)).toBe('none');
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await page.evaluate(()=>__fake.calls.filter(x=>x.name==='create_order').length)).toBe(0);
+});
+
+test('kiosk stays on waiting order beyond idle timeout without wake lock support',async({page})=>{
+ await mock(page);await page.addInitScript(()=>{localStorage.setItem('missmaki-active-order','r1');Object.defineProperty(navigator,'wakeLock',{value:undefined,configurable:true});});await page.clock.install();
+ await page.goto('/kiosk.html');await page.locator('#open-menu').click();const menu=page.frameLocator('iframe[title="Меню и оформление заказа MissMaki"]');await expect(menu.locator('#status')).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.');await page.clock.fastForward(125000);await expect(page.locator('#splash')).toHaveClass(/open/);await expect(menu.locator('#status')).toHaveAttribute('data-waiting','true');
+ const f=page.frames().find(f=>f!==page.mainFrame()&&new URL(f.url()).pathname==='/');await f.evaluate(()=>{__fake.status='accepted';__fake.fulfillment='pickup';__fake.minutes=30;__fake.pickupNumber=6;document.dispatchEvent(new Event('visibilitychange'));});await expect(menu.locator('#status')).toContainText('Будет готов через 30 минут.');await expect(menu.locator('#status')).toContainText('Ячейка самовывоза: №6');
 });

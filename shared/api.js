@@ -115,21 +115,18 @@
    if(result.error)throw result.error;return result.data;
   },
   orderMessage(data,now=new Date()){
-   if(data.status==='accepted'&&data.timing==='preorder'){
-    const date=/^\d{4}-\d{2}-\d{2}$/.test(data.requested_date||'')?data.requested_date:null;
-    const time=/^\d{2}:\d{2}/.test(data.requested_time||'')?data.requested_time.slice(0,5):null;
-    if(date&&time){
-     const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
-     const when=time+(date===today?'':' '+date.split('-').reverse().join('.'));
-     if(data.fulfillment==='delivery')return `Ваш предзаказ принят! Доставим к ${when} 💚`;
-     if(data.fulfillment==='pickup'){const n=data.pickup_number;return `Ваш предзаказ принят! Будет готово к ${when}. Будем Вас ждать 💚`+(Number.isInteger(n)&&n>=1&&n<=6?`\n\n📦 Ячейка самовывоза: №${n}\n\nОплата при получении на кассе.`:'');}
-    }
-   }
-   if(data.status==='accepted'&&data.fulfillment==='pickup'&&Number.isInteger(data.pickup_number)&&data.pickup_number>=1&&data.pickup_number<=6){
-    const n=data.pickup_number;
-    if(data.timing!=='preorder')return `Ваш заказ подтверждён! 🍣\n\n⏱ Время ожидания: ${data.minutes} минут\n\n📦 Ячейка самовывоза: №${n}\n\nВаш заказ будет ждать вас в ячейке №${n}.\n\nОплата при получении на кассе.\n\nСпасибо, что выбираете MissMaki! ❤️`;
-   }
-   return data.status==='accepted'?`Ваш заказ №${data.number} принят! Время ожидания — ${data.minutes} минут`:data.status==='rejected'?'К сожалению, сейчас мы не можем принять ваш заказ':data.status==='completed'?`Заказ №${data.number} выполнен`:`Заказ №${data.number} отправлен. Ожидаем подтверждения MissMaki…`;
+   const pickup=data.fulfillment==='pickup',preorder=data.timing==='preorder';
+   if(data.status==='rejected')return 'ВАШ ЗАКАЗ НЕ ПРИНЯТ.\nК сожалению, сейчас мы не можем выполнить Ваш заказ. Приносим свои извинения.';
+   if(data.status==='completed')return `ЗАКАЗ №${data.number} ВЫПОЛНЕН.`;
+   if(data.status!=='accepted')return 'ВАШ ЗАКАЗ ОТПРАВЛЕН!\n\nСпасибо, что выбрали MissMaki!\n\nОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.\n\nНе закрывайте и не обновляйте страницу, не блокируйте экран телефона. Подтверждение заказа и время готовности появятся здесь автоматически.';
+   let message;
+   if(preorder){
+    const date=data.requested_date||'',time=(data.requested_time||'').slice(0,5);
+    const when=time+(date?' '+date.split('-').reverse().join('.'):'');
+    message='ВАШ ПРЕДЗАКАЗ ПРИНЯТ!\n'+(pickup?`Будет готов к ${when}.\nБудем Вас ждать!`:`Доставим к ${when}.`);
+   }else message='ВАШ ЗАКАЗ ПРИНЯТ!\n'+(pickup?`Будет готов через ${data.minutes} минут.\nБудем Вас ждать!`:`Доставим в течение ${data.minutes} минут.`);
+   if(pickup&&Number.isInteger(data.pickup_number)&&data.pickup_number>=1&&data.pickup_number<=6)message+=`\n\nЯчейка самовывоза: №${data.pickup_number}\nОплата при получении на кассе.`;
+   return message;
   },
   async rpc(name,args={}){
    if(!this.databaseGuest()||name==='public_reviews')return this.rawRpc(name,args);
