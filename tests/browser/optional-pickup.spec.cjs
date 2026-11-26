@@ -10,6 +10,9 @@ test.beforeAll(async()=>{
  await db.query('insert into auth.users values($1)',[S]);await db.query("insert into public.staff values($1,'admin')",[S]);date=(await db.query("select ((now() at time zone 'Europe/Moscow')::date+1)::text d")).rows[0].d;
 });test.afterAll(()=>db?.close());
 async function connect(context,buyer){
+ await context.addInitScript(()=>{window.MM_ANALYTICS_TEST=true;localStorage.setItem('mm-analytics-consent-v1',JSON.stringify({value:'accepted',at:Date.now()}));});
+ await context.route('https://mc.yandex.ru/metrika/tag.js?id=114705499',r=>r.fulfill({contentType:'application/javascript',body:"window.__ymCalls=[];const q=window.ym?.a||[];window.ym=(...a)=>__ymCalls.push(a);for(const a of q)ym(...a);"}));
+
  await context.addInitScript(()=>localStorage.setItem('mm-ad-consent-v1',JSON.stringify({value:'accepted',at:Date.now()})));
  await context.route('https://yandex.ru/ads/system/context.js',r=>r.fulfill({contentType:'application/javascript',body:"window.Ya={Context:{AdvManager:{render(o){const n=document.createElement('div');n.textContent='Тестовая реклама';n.style.height='90px';document.getElementById(o.renderTo).append(n);o.onRender();}}}};window.yaContextCb.splice(0).forEach(f=>f());"}));
 
@@ -28,8 +31,10 @@ for(const surface of ['site','kiosk'])for(const kind of ['pickup','delivery'])fo
  if(kind==='delivery'){const dialog=page.waitForEvent('dialog');const attempt=frame.evaluate(()=>checkout());const d=await dialog;expect(d.message()).toContain('Укажите имя, телефон');await d.accept();await attempt;expect(await serial(async()=>{await db.exec('reset role');return (await db.query('select count(*)::int n from public.orders where customer_id=$1',[buyer])).rows[0].n;})).toBe(0);await frame.locator('#name').fill('Клиент');await frame.locator('#phone').fill('+70000000000');}
  await frame.locator('#send').focus();await frame.locator('#send').press('Enter');await expect(frame.locator('#status')).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.',{timeout:15000});
  const order=await serial(async()=>{await role(buyer);return (await db.query('select * from public.orders')).rows[0];});expect(order).toBeTruthy();expect(order.name).toBe(kind==='pickup'?'':'Клиент');expect(order.phone).toBe(kind==='pickup'?'':'+70000000000');if(timing==='preorder'){expect(order.requested_time).toBe('18:30:00');expect(order.requested_date.toISOString().slice(0,10)).toBe(date);}
+ if(surface==='site')await expect.poll(()=>frame.evaluate(()=>window.__ymCalls?.filter(x=>x[2]==='mm_order_submitted').length||0)).toBe(1);else await expect(frame.locator('script[src*="mc.yandex.ru/metrika"]')).toHaveCount(0);
  const kitchen=await context.newPage();await kitchen.goto('/kitchen/');const card=kitchen.locator('.card').filter({has:kitchen.getByRole('heading',{name:new RegExp('Заказ №'+order.number+' ·')})});await expect(card).toBeVisible();if(kind==='pickup')await expect(card.locator('a[href^="tel:"]')).toHaveCount(0);
  await card.getByRole('button',{name:timing==='preorder'?'Принять':'15 минут',exact:true}).click();await expect(frame.locator('#status')).toContainText(timing==='preorder'?'ВАШ ПРЕДЗАКАЗ ПРИНЯТ!':'ВАШ ЗАКАЗ ПРИНЯТ!');if(timing==='preorder')await expect(frame.locator('#status')).toContainText('18:30');
+ if(surface==='site'){expect(await frame.evaluate(()=>__ymCalls.some(x=>x[2]==='mm_'+(isPreorder()?'preorder_':'')+method()+'_order'))).toBe(true);await expect.poll(()=>frame.evaluate(()=>window.__ymCalls.filter(x=>x[2]==='mm_order_confirmed').length)).toBe(1);const g=await frame.evaluate(()=>__ymCalls.find(x=>x[2]==='mm_order_confirmed')[3]);expect(g.order_price).toBe(Number(order.total));expect(g.payment_status).toBe('not_verified');expect(await frame.evaluate(()=>dataLayer.some(x=>x.ecommerce?.purchase))).toBe(false);}
  await kitchen.getByRole('button',{name:'Принятые',exact:true}).click();await card.getByRole('button',{name:timing==='preorder'?'Отклонить':'ОТКАЗ',exact:true}).click();await expect(frame.locator('#status')).toHaveText('ВАШ ЗАКАЗ НЕ ПРИНЯТ.\nК сожалению, сейчас мы не можем выполнить Ваш заказ. Приносим свои извинения.');
  if(kind==='pickup'&&timing==='asap'){
   await frame.evaluate(()=>add(1));await frame.locator('#send').focus();await frame.locator('#send').press('Enter');await expect(frame.locator('#status')).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.');
@@ -37,4 +42,10 @@ for(const surface of ['site','kiosk'])for(const kind of ['pickup','delivery'])fo
   await kitchen.getByRole('button',{name:'Новые',exact:true}).click();const secondCard=kitchen.locator('.card').filter({has:kitchen.getByRole('heading',{name:new RegExp('Заказ №'+next[1].number+' ·')})});await secondCard.getByRole('button',{name:'ОТКАЗ',exact:true}).click();await expect(frame.locator('#status')).toHaveText('ВАШ ЗАКАЗ НЕ ПРИНЯТ.\nК сожалению, сейчас мы не можем выполнить Ваш заказ. Приносим свои извинения.');
  }
  await kitchen.close();
+});
+
+test('analytics failure: blocked counter still permits checkout, persistence and kitchen acceptance',async({page,context})=>{
+ const buyer=randomUUID();await serial(async()=>{await db.exec('reset role');await db.query('insert into auth.users values($1)',[buyer]);});await connect(context,buyer);await page.route('https://mc.yandex.ru/metrika/tag.js?id=114705499',r=>r.abort());await page.goto('/');
+ await page.evaluate(()=>{isOpen=()=>true;add(1);document.querySelector('input[name=fulfillment][value=pickup]').checked=true;setMethod();updateHours();});await page.locator('#send').focus();await page.locator('#send').press('Enter');await expect(page.locator('#status')).toContainText('ВАШ ЗАКАЗ ОТПРАВЛЕН!',{timeout:15000});
+ const saved=await serial(async()=>{await role(buyer);return (await db.query('select * from public.orders')).rows;});expect(saved).toHaveLength(1);const order=saved[0];const kitchen=await context.newPage();await kitchen.goto('/kitchen/');await kitchen.getByRole('button',{name:'15 минут',exact:true}).click();await expect(page.locator('#status')).toContainText('ВАШ ЗАКАЗ ПРИНЯТ!');expect(await page.evaluate(()=>Object.keys(cart).length)).toBe(0);await kitchen.close();
 });
