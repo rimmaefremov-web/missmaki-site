@@ -44,7 +44,9 @@
  function status(id,data){
   if(!data||data.is_test)return;submitted(id,data.fulfillment,data.timing,true);
   if(!['accepted','rejected'].includes(data.status))return;
-  const accepted=data.status==='accepted';once(id,data.status,record=>{
+  const accepted=data.status==='accepted',amount=Number(data.total);
+  if(accepted&&(data.total==null||!Number.isFinite(amount)||amount<0||amount>=10000000))return;
+  once(id,data.status,record=>{
    const params={order_type:record.type,payment_status:'not_verified',currency:'RUB'};
    if(accepted){
     const total=Number(data.total);if(Number.isFinite(total)&&total>=0&&total<10000000){params.confirmed_total=total;params.order_price=total;}
