@@ -1,0 +1,30 @@
+const {test,expect}=require('@playwright/test');
+async function setup(page,{consent=false,blocked=false}={}){
+ let loads=0;await page.addInitScript(consent=>{window.MM_ANALYTICS_TEST=true;if(consent)localStorage.setItem('mm-analytics-consent-v1',JSON.stringify({value:'accepted',at:Date.now()}));},consent);
+ await page.route('**/shared/config.js',r=>r.fulfill({contentType:'application/javascript',body:'window.MISSMAKI_CONFIG={enabled:false};'}));
+ await page.route('https://mc.yandex.ru/metrika/tag.js?id=114705499',r=>{loads++;return blocked?r.abort():r.fulfill({contentType:'application/javascript',body:'window.__ymCalls=[];const queued=window.ym?.a||[];window.ym=(...a)=>__ymCalls.push(a);for(const a of queued)ym(...a);'});});return ()=>loads;
+}
+test('analytics: separate opt-in, one loader, no webvisor/pixel, private URL stripped and only safe catalogue events',async({page})=>{
+ const loads=await setup(page);await page.goto('/?phone=SECRET&name=SECRET#SECRET');expect(loads()).toBe(0);await expect(page.locator('noscript img[src*="mc.yandex"]')).toHaveCount(0);
+ await page.getByRole('button',{name:'Разрешить аналитику',exact:true}).click();await expect.poll(()=>loads()).toBe(1);await expect.poll(()=>page.evaluate(()=>window.__ymCalls?.length||0)).toBeGreaterThanOrEqual(2);expect(new URL(page.url()).search).toBe('');expect(new URL(page.url()).hash).toBe('');
+ const init=await page.evaluate(()=>__ymCalls.find(x=>x[1]==='init')[2]);expect(init.webvisor).toBe(false);expect(init.ecommerce).toBe('dataLayer');expect(init.defer).toBe(true);
+ await page.getByRole('button',{name:'Настроить аналитические cookies',exact:true}).click();await page.getByRole('button',{name:'Разрешить аналитику',exact:true}).click();expect(loads()).toBe(1);
+ await page.locator('[data-analytics-product]').first().scrollIntoViewIfNeeded();await expect.poll(()=>page.evaluate(()=>dataLayer.filter(x=>x.ecommerce?.detail?.products.some(p=>p.id==='5:0')).length)).toBe(1);await page.evaluate(()=>render());await page.waitForTimeout(100);expect(await page.evaluate(()=>dataLayer.filter(x=>x.ecommerce?.detail?.products.some(p=>p.id==='5:0')).length)).toBe(1);
+ await page.evaluate(()=>{add(1);add(1);change('1:0',-1);extraChoice=2;addExtra();});const events=await page.evaluate(()=>dataLayer);expect(events.some(x=>x.ecommerce?.add?.products.some(p=>p.category==='Дополнения'))).toBe(true);expect(events.some(x=>x.ecommerce?.remove?.products.some(p=>p.quantity===1))).toBe(true);
+ expect(JSON.stringify(await page.evaluate(()=>({calls:__ymCalls,layer:dataLayer})))).not.toContain('SECRET');expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+});
+test('analytics: server decisions deduplicate across refresh and tabs, old orders and rejected orders never become purchases',async({page,context})=>{
+ await setup(page,{consent:true});await page.goto('/');await page.waitForFunction(()=>window.__ymCalls);const id='fixture-order-privacy';const decision={status:'accepted',fulfillment:'pickup',timing:'asap',total:470,items:[{sku:'5:0',name:'SECRET',quantity:1,price:470}],name:'SECRET',phone:'SECRET',comment:'SECRET',address:'SECRET'};
+ await page.evaluate(({id,decision})=>{MMAnalytics.status('old-order',decision);MMAnalytics.attempt(id,'pickup','asap');MMAnalytics.submitted(id,'pickup','asap');MMAnalytics.status(id,{status:'accepted'});MMAnalytics.status(id,decision);MMAnalytics.status(id,decision);},{id,decision});
+ await expect.poll(()=>page.evaluate(()=>__ymCalls.filter(x=>x[1]==='reachGoal'&&x[2]==='mm_order_confirmed').length)).toBe(1);
+ const confirm=await page.evaluate(()=>__ymCalls.find(x=>x[2]==='mm_order_confirmed')[3]);expect(confirm.order_price).toBe(470);expect(confirm.payment_status).toBe('not_verified');expect(JSON.stringify(await page.evaluate(()=>({calls:__ymCalls,layer:dataLayer})))).not.toContain('SECRET');expect(await page.evaluate(()=>dataLayer.some(x=>x.ecommerce?.purchase))).toBe(false);
+ await page.evaluate(id=>MMAnalytics.status(id,{status:'rejected'}),id);await expect.poll(()=>page.evaluate(()=>__ymCalls.filter(x=>x[2]==='mm_order_rejected').length)).toBe(1);
+ await page.reload();await page.waitForFunction(()=>window.__ymCalls);const other=await context.newPage();await setup(other,{consent:true});await other.goto('/');await other.waitForFunction(()=>window.__ymCalls);
+ await Promise.all([page.evaluate(({id,decision})=>{MMAnalytics.submitted(id,'pickup','asap');MMAnalytics.status(id,decision);},{id,decision}),other.evaluate(({id,decision})=>MMAnalytics.status(id,decision),{id,decision})]);
+ await page.waitForTimeout(200);for(const p of [page,other])expect(await p.evaluate(()=>__ymCalls.filter(x=>['mm_order_submitted','mm_order_confirmed','mm_order_rejected'].includes(x[2])).length)).toBe(0);await Promise.all([page.evaluate(()=>{MMAnalytics.attempt('race-order','pickup','asap');MMAnalytics.submitted('race-order','pickup','asap');MMAnalytics.status('race-order',{status:'accepted',total:10});}),other.evaluate(()=>{MMAnalytics.attempt('race-order','pickup','asap');MMAnalytics.submitted('race-order','pickup','asap');MMAnalytics.status('race-order',{status:'accepted',total:10});})]);await expect.poll(async()=>{const counts=await Promise.all([page,other].map(p=>p.evaluate(()=>__ymCalls.filter(x=>x[2]==='mm_order_confirmed').length)));return counts.reduce((a,b)=>a+b,0);}).toBe(1);await other.close();
+});
+test('analytics: blocked library does not interfere with cart; kiosk and backup kitchen never load the counter',async({page})=>{
+ const loads=await setup(page,{consent:true,blocked:true});await page.goto('/');await page.evaluate(()=>{add(1);change('1:0',1);});await expect(page.locator('#cart')).toContainText('× 2');expect(loads()).toBe(1);
+ await page.goto('/kiosk.html');await page.locator('#open-menu').click();const menu=page.frameLocator('iframe[title="Меню и оформление заказа MissMaki"]');await expect(menu.locator('#send')).toBeAttached();await expect(menu.locator('#mm-analytics-preferences')).toHaveCount(0);expect(loads()).toBe(1);
+ for(const path of ['/kitchen/','/kitchen/backup.html']){await page.goto(path);expect(loads()).toBe(1);}
+});

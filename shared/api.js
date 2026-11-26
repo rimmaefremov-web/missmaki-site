@@ -109,7 +109,7 @@
   async order(request){
    await this.customer();
    if(this.databaseGuest())return this.rawRpc('guest_order',{p_token:this.guestRecord().token,p_request:request});
-   let result=await this.client().from('orders').select('number,status,minutes,fulfillment,timing,requested_date,requested_time,pickup_number').eq('request_id',request).maybeSingle();
+   let result=await this.client().from('orders').select('number,status,minutes,fulfillment,timing,requested_date,requested_time,pickup_number,total,items,is_test').eq('request_id',request).maybeSingle();
    // Backward compatibility before migration 008 is approved and installed.
    if(['42703','PGRST204'].includes(result.error?.code))result=await this.client().from('orders').select('number,status,minutes').eq('request_id',request).maybeSingle();
    if(result.error)throw result.error;return result.data;

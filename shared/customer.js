@@ -1,6 +1,7 @@
 /* Loaded after the existing site script. Only enabled configuration changes transport. */
 if(window.MM?.enabled){
  const originalCheckout=checkout;
+ const analytics=(name,...args)=>{try{window.MMAnalytics?.[name]?.(...args);}catch(e){}};
  const screen=document.getElementById('status'),paymentInfo=document.getElementById('payment-info');
  for(const n of paymentInfo.querySelectorAll(':scope > h3,:scope > p'))n.hidden=true;
  screen.after(paymentInfo);
@@ -28,12 +29,14 @@ if(window.MM?.enabled){
   lastSubmissionError=null;lastOrder=null;waitState(true);
   await MM.customer();
   const {requestId,origin,...payload}=order;
+  analytics('attempt',requestId,payload.fulfillment,payload.timing);
   localStorage.setItem('mm-pending-submission',JSON.stringify({requestId,payload}));
   localStorage.setItem('missmaki-active-order',requestId);
   watchOrder(requestId);
   try{
   const result=await MM.rpc('create_order',{p_request:requestId,p:payload});
   if(result?.ok!==true||typeof result.id!=='string'||!result.id||!Number.isSafeInteger(Number(result.number))||Number(result.number)<1)throw Error('Сервер не подтвердил сохранение заказа. Повторите отправку с прежней корзиной.');
+  analytics('submitted',requestId,payload.fulfillment,payload.timing);
   localStorage.removeItem('mm-pending-submission');
   return result;
   }catch(e){lastSubmissionError=MMCompat.message(e);if(!lastOrder)waitState(false);throw e;}
@@ -47,7 +50,7 @@ if(window.MM?.enabled){
   stopWatching=MM.subscribe(async()=>{
    const data=await MM.order(id);if(version!==watchVersion)return;
    if(!data){if(!lastOrder)screen.textContent=lastSubmissionError?'Не удалось подтвердить отправку. '+lastSubmissionError+' Повторите с той же корзиной.':'Проверяем сохранение заказа. Не отправляйте новый заказ.';return;}
-   showOrder(data);
+   analytics('status',id,data);showOrder(data);
   },ok=>{if(!ok&&version===watchVersion&&(!lastOrder||lastOrder.status==='new')){screen.textContent=(lastOrder?MM.orderMessage(lastOrder)+'\n\n':'')+'Нет связи с кухней. Сохранённый заказ проверим при восстановлении интернета. Не отправляйте новый заказ.';}});
  };
 
