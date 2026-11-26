@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /kitchen/
+Disallow: /supabase/
+Sitemap: https://missmaki.ru/sitemap.xml
