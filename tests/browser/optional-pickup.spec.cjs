@@ -23,23 +23,69 @@ async function connect(context,buyer){
 }
 for(const surface of ['site','kiosk'])for(const kind of ['pickup','delivery'])for(const timing of ['asap','preorder'])test(`${surface}: ${kind}/${timing}, contacts, persisted kitchen order and automatic decisions`,async({page,context})=>{
  test.setTimeout(45000);const buyer=randomUUID();await serial(async()=>{await db.exec('reset role');await db.query('insert into auth.users values($1)',[buyer]);});await connect(context,buyer);
+ if(surface==='kiosk')await context.addInitScript(()=>{if(window===window.top){
+  localStorage.setItem('mm-pending-submission',JSON.stringify({payload:{name:'Предыдущий клиент',phone:'+70001111111'}}));
+  localStorage.setItem('missmaki-active-order','old-order');
+  sessionStorage.setItem('missmaki-pending-order','old-request');
+  localStorage.setItem('mm-kiosk-test-unrelated','keep');
+ }});
  await page.goto(surface==='site'?'/':'/kiosk.html');let frame=page.mainFrame();
- if(surface==='kiosk'){await page.locator('#open-menu').click();const loc=page.frameLocator('iframe[title="Меню и оформление заказа MissMaki"]');await expect(loc.locator('#send')).toBeVisible();frame=page.frames().find(f=>f!==page.mainFrame()&&new URL(f.url()).pathname==='/');}
+ if(surface==='kiosk'){await page.locator('#open-menu').click();const loc=page.frameLocator('iframe[title="Меню и оформление заказа MissMaki"]');await expect(loc.locator('#send')).toBeVisible();frame=page.frames().find(f=>f!==page.mainFrame()&&f.url()==='about:srcdoc');}
+ if(surface==='kiosk'){
+  await expect(frame.locator('#name')).toHaveValue('');
+  await expect(frame.locator('#phone')).toHaveAttribute('autocomplete','off');
+  expect(await page.evaluate(()=>[localStorage.getItem('mm-pending-submission'),localStorage.getItem('missmaki-active-order'),sessionStorage.getItem('missmaki-pending-order'),localStorage.getItem('mm-kiosk-test-unrelated')])).toEqual([null,null,null,'keep']);
+ }
  if(surface==='site')await expect(frame.locator('#yandex_rtb_R-A-20513421-1')).toHaveClass(/ad-filled/);else await expect(frame.locator('script[src="https://yandex.ru/ads/system/context.js"]')).toHaveCount(0);
  await frame.evaluate(({kind,timing,date})=>{isOpen=()=>true;add(1);document.querySelector(`input[name=fulfillment][value=${kind}]`).checked=true;setMethod();document.querySelector(`input[name=orderTiming][value=${timing}]`).checked=true;updateTiming();if(timing==='preorder'){document.getElementById('preorder-date').value=date;refreshSlots();document.getElementById('preorder-time').value='18:30';}updateHours();if(kind==='delivery'){document.getElementById('area').selectedIndex=1;document.getElementById('address').value='Тестовый адрес';}},{kind,timing,date});
  expect(await frame.locator('#name').getAttribute('aria-required')).toBe(String(kind==='delivery'));expect(await frame.locator('#phone').getAttribute('aria-required')).toBe(String(kind==='delivery'));
  if(kind==='delivery'){const dialog=page.waitForEvent('dialog');const attempt=frame.evaluate(()=>checkout());const d=await dialog;expect(d.message()).toContain('Укажите имя, телефон');await d.accept();await attempt;expect(await serial(async()=>{await db.exec('reset role');return (await db.query('select count(*)::int n from public.orders where customer_id=$1',[buyer])).rows[0].n;})).toBe(0);await frame.locator('#name').fill('Клиент');await frame.locator('#phone').fill('+70000000000');}
+ if(surface==='kiosk'){
+  await frame.locator('#comment').fill('Вымышленный комментарий');
+  if(kind==='pickup'){await frame.locator('#name').fill('Клиент');await frame.locator('#phone').fill('+70000000000');}
+  await frame.evaluate(()=>{const rpc=MM.rpc;MM.rpc=async function(name,args){
+   if(name==='create_order'){MM.rpc=rpc;window.failedRequest=args.p_request;throw Error('Тестовая ошибка отправки');}
+   return rpc.call(this,name,args);
+  };});
+  await frame.locator('#send').press('Enter');
+  await expect(frame.locator('#status')).toContainText('Тестовая ошибка отправки');
+  await expect(frame.locator('#name')).toHaveValue('Клиент');
+  await expect(frame.locator('#phone')).toHaveValue('+70000000000');
+  await expect(frame.locator('#comment')).toHaveValue('Вымышленный комментарий');
+  await expect(frame.locator('#cart button')).toHaveCount(2);
+  expect(await page.evaluate(()=>localStorage.getItem('mm-pending-submission'))).toBeNull();
+ }
  await frame.locator('#send').focus();await frame.locator('#send').press('Enter');await expect(frame.locator('#status')).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.',{timeout:15000});
- const order=await serial(async()=>{await role(buyer);return (await db.query('select * from public.orders')).rows[0];});expect(order).toBeTruthy();expect(order.name).toBe(kind==='pickup'?'':'Клиент');expect(order.phone).toBe(kind==='pickup'?'':'+70000000000');if(timing==='preorder'){expect(order.requested_time).toBe('18:30:00');expect(order.requested_date.toISOString().slice(0,10)).toBe(date);}
+ if(surface==='kiosk'){
+  for(const id of ['name','phone','area','address','comment','preorder-date','preorder-time'])await expect(frame.locator('#'+id)).toHaveValue('');
+  await expect(frame.locator('input[name="fulfillment"][value="delivery"]')).toBeChecked();
+  await expect(frame.locator('input[name="orderTiming"][value="asap"]')).toBeChecked();
+  await expect(frame.locator('#cart button')).toHaveCount(0);
+  expect(await frame.evaluate(()=>[localStorage.getItem('mm-pending-submission'),localStorage.getItem('missmaki-active-order'),localStorage.getItem('mm-pickup-intent'),sessionStorage.getItem('missmaki-pending-order')])).toEqual([null,null,null,null]);
+ }
+ const order=await serial(async()=>{await role(buyer);return (await db.query('select * from public.orders')).rows[0];});expect(order).toBeTruthy();expect(order.name).toBe(kind==='pickup'&&surface==='site'?'':'Клиент');expect(order.phone).toBe(kind==='pickup'&&surface==='site'?'':'+70000000000');if(surface==='kiosk')expect(order.request_id).toBe(await frame.evaluate(()=>window.failedRequest));if(timing==='preorder'){expect(order.requested_time).toBe('18:30:00');expect(order.requested_date.toISOString().slice(0,10)).toBe(date);}
  if(surface==='site')await expect.poll(()=>frame.evaluate(()=>window.__ymCalls?.filter(x=>x[2]==='mm_order_submitted').length||0)).toBe(1);else await expect(frame.locator('script[src*="mc.yandex.ru/metrika"]')).toHaveCount(0);
- const kitchen=await context.newPage();await kitchen.goto('/kitchen/');const card=kitchen.locator('.card').filter({has:kitchen.getByRole('heading',{name:new RegExp('Заказ №'+order.number+' ·')})});await expect(card).toBeVisible();if(kind==='pickup')await expect(card.locator('a[href^="tel:"]')).toHaveCount(0);
+ const kitchen=await context.newPage();await kitchen.goto('/kitchen/');const card=kitchen.locator('.card').filter({has:kitchen.getByRole('heading',{name:new RegExp('Заказ №'+order.number+' ·')})});await expect(card).toBeVisible();if(kind==='pickup')await expect(card.locator('a[href^="tel:"]')).toHaveCount(surface==='kiosk'?1:0);
  await card.getByRole('button',{name:timing==='preorder'?'Принять':'15 минут',exact:true}).click();await expect(frame.locator('#status')).toContainText(timing==='preorder'?'ВАШ ПРЕДЗАКАЗ ПРИНЯТ!':'ВАШ ЗАКАЗ ПРИНЯТ!');if(timing==='preorder')await expect(frame.locator('#status')).toContainText('18:30');
  if(surface==='site'){expect(await frame.evaluate(()=>__ymCalls.some(x=>x[2]==='mm_'+(isPreorder()?'preorder_':'')+method()+'_order'))).toBe(true);await expect.poll(()=>frame.evaluate(()=>window.__ymCalls.filter(x=>x[2]==='mm_order_confirmed').length)).toBe(1);const g=await frame.evaluate(()=>__ymCalls.find(x=>x[2]==='mm_order_confirmed')[3]);expect(g.order_price).toBe(Number(order.total));expect(g.payment_status).toBe('not_verified');expect(await frame.evaluate(()=>dataLayer.some(x=>x.ecommerce?.purchase))).toBe(false);}
  await kitchen.getByRole('button',{name:'Принятые',exact:true}).click();await card.getByRole('button',{name:timing==='preorder'?'Отклонить':'ОТКАЗ',exact:true}).click();await expect(frame.locator('#status')).toHaveText('ВАШ ЗАКАЗ НЕ ПРИНЯТ.\nК сожалению, сейчас мы не можем выполнить Ваш заказ. Приносим свои извинения.');
  if(kind==='pickup'&&timing==='asap'){
-  await frame.evaluate(()=>add(1));await frame.locator('#send').focus();await frame.locator('#send').press('Enter');await expect(frame.locator('#status')).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.');
+  await frame.evaluate(()=>add(1));
+  if(surface==='kiosk')await frame.locator('input[name="fulfillment"][value="pickup"]').check();
+  await frame.locator('#send').focus();await frame.locator('#send').press('Enter');await expect(frame.locator('#status')).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.');
   const next=await serial(async()=>{await role(buyer);return (await db.query('select * from public.orders order by number')).rows;});expect(next).toHaveLength(2);expect(next[1].request_id).not.toBe(order.request_id);
   await kitchen.getByRole('button',{name:'Новые',exact:true}).click();const secondCard=kitchen.locator('.card').filter({has:kitchen.getByRole('heading',{name:new RegExp('Заказ №'+next[1].number+' ·')})});await secondCard.getByRole('button',{name:'ОТКАЗ',exact:true}).click();await expect(frame.locator('#status')).toHaveText('ВАШ ЗАКАЗ НЕ ПРИНЯТ.\nК сожалению, сейчас мы не можем выполнить Ваш заказ. Приносим свои извинения.');
+ }
+ if(surface==='kiosk'&&kind==='pickup'&&timing==='asap'){
+  await page.clock.install();
+  await page.evaluate(()=>document.dispatchEvent(new Event('keydown')));
+  await page.clock.fastForward(119000);
+  await expect(page.locator('#splash')).toHaveClass('open');
+  await page.clock.fastForward(2000);
+  await expect(page.locator('#splash')).not.toHaveClass('open');
+  await page.locator('#open-menu').click();
+  await expect(page.frameLocator('#menu iframe').locator('#name')).toHaveValue('');
+  await expect(page.frameLocator('#menu iframe').locator('#status')).toHaveText('Заказ принят только после подтверждения MissMaki.');
  }
  await kitchen.close();
 });

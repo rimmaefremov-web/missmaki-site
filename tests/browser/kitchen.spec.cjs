@@ -162,12 +162,25 @@ test('preorder rejection and normal order keep their distinct action controls',a
  await page.evaluate(()=>Object.assign(__fake,{timing:'asap',status:'new'}));await page.locator('#refresh').click();for(const minutes of [15,30,45,60,90,120,150,180])await expect(page.getByRole('button',{name:minutes+' минут',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'30 минут',exact:true}).click();expect(await page.evaluate(()=>__fake.minutes)).toBe(30);
 });
+async function placeKioskOrder(page) {
+ await page.goto('/kiosk.html');
+ await page.locator('#open-menu').click();
+ const send=page.frameLocator('#menu iframe').locator('#send');
+ await expect(send).toBeVisible();
+ const frame=await (await send.elementHandle()).ownerFrame();
+ await frame.evaluate(()=>{
+  isOpen=()=>true;add(1);
+  document.querySelector('input[name="fulfillment"][value="pickup"]').checked=true;
+  setMethod();updateHours();
+ });
+ await send.press('Enter');
+ await expect(frame.locator('#status')).toContainText('ВАШ ЗАКАЗ ОТПРАВЛЕН!');
+ return frame;
+}
 test('scheduled delivery updates automatically inside customer kiosk menu',async({page})=>{
- await mock(page);await page.addInitScript(()=>localStorage.setItem('missmaki-active-order','r1'));await page.goto('/kiosk.html');await page.locator('#open-menu').click();
- const menu=page.frameLocator('iframe[title="Меню и оформление заказа MissMaki"]');await expect(menu.locator('#status')).toContainText('ВАШ ЗАКАЗ ОТПРАВЛЕН!');
- const frame=page.frames().find(f=>f!==page.mainFrame()&&new URL(f.url()).pathname==='/');expect(frame).toBeTruthy();
+ await mock(page);const frame=await placeKioskOrder(page);
  await frame.evaluate(()=>Object.assign(__fake,{status:'accepted',timing:'preorder',fulfillment:'delivery',requestedDate:'2026-11-26',requestedTime:'18:30:00'}));
- await expect(menu.locator('#status')).toHaveText('ВАШ ПРЕДЗАКАЗ ПРИНЯТ!\nДоставим к 18:30 26.11.2026.');
+ await expect(frame.locator('#status')).toHaveText('ВАШ ПРЕДЗАКАЗ ПРИНЯТ!\nДоставим к 18:30 26.11.2026.');
 });
 
 async function historyFixture(page){
@@ -213,7 +226,12 @@ test('waiting screen is accessible, reacquires wake lock, recovers status and ke
 });
 
 test('kiosk stays on waiting order beyond idle timeout without wake lock support',async({page})=>{
- await mock(page);await page.addInitScript(()=>{localStorage.setItem('missmaki-active-order','r1');Object.defineProperty(navigator,'wakeLock',{value:undefined,configurable:true});});await page.clock.install();
- await page.goto('/kiosk.html');await page.locator('#open-menu').click();const menu=page.frameLocator('iframe[title="Меню и оформление заказа MissMaki"]');await expect(menu.locator('#status')).toContainText('ОЖИДАЙТЕ ПОДТВЕРЖДЕНИЯ ЗАКАЗА.');await page.clock.fastForward(125000);await expect(page.locator('#splash')).toHaveClass(/open/);await expect(menu.locator('#status')).toHaveAttribute('data-waiting','true');
- const f=page.frames().find(f=>f!==page.mainFrame()&&new URL(f.url()).pathname==='/');await f.evaluate(()=>{__fake.status='accepted';__fake.fulfillment='pickup';__fake.minutes=30;__fake.pickupNumber=6;document.dispatchEvent(new Event('visibilitychange'));});await expect(menu.locator('#status')).toContainText('Будет готов через 30 минут.');await expect(menu.locator('#status')).toContainText('Ячейка самовывоза: №6');
+ await mock(page);await page.addInitScript(()=>{Object.defineProperty(navigator,'wakeLock',{value:undefined,configurable:true});});await page.clock.install();
+ const frame=await placeKioskOrder(page);
+ await page.clock.fastForward(125000);
+ await expect(page.locator('#splash')).toHaveClass(/open/);
+ await expect(frame.locator('#status')).toHaveAttribute('data-waiting','true');
+ await frame.evaluate(()=>{__fake.status='accepted';__fake.fulfillment='pickup';__fake.minutes=30;__fake.pickupNumber=6;document.dispatchEvent(new Event('visibilitychange'));});
+ await expect(frame.locator('#status')).toContainText('Будет готов через 30 минут.');
+ await expect(frame.locator('#status')).toContainText('Ячейка самовывоза: №6');
 });

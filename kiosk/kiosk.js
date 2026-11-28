@@ -17,19 +17,58 @@ let timer;
 let gesture;
 let isOpen = false;
 
-function loadMenu() {
-  frame = document.createElement('iframe');
-  frame.title = 'Меню и оформление заказа MissMaki';
-  frame.src = menuUrl.href;
-  frame.addEventListener('load', event => {
+function removeLegacyCheckoutData() {
+  const keys = new Set(['mm-pending-submission', 'missmaki-active-order',
+    'mm-pickup-intent', 'missmaki-pending-order', 'mm-guest-session', 'mm-customer',
+    'mm-customer-user', 'mm-customer-code-verifier']);
+  for (const name of ['localStorage', 'sessionStorage']) {
+    try {
+      const storage = window[name];
+      for (let i = storage.length - 1; i >= 0; i--) {
+        const key = storage.key(i);
+        if (key && (keys.has(key) || key.startsWith('missmaki-order:'))) storage.removeItem(key);
+      }
+    } catch {
+      // The embedded document uses temporary storage even when browser storage is unavailable.
+    }
+  }
+}
+
+async function loadMenu() {
+  menu.replaceChildren();
+  const nextFrame = document.createElement('iframe');
+  frame = nextFrame;
+  try {
+    const [response, checkout] = await Promise.all([
+      fetch(menuUrl, { mode: 'same-origin' }),
+      fetch(new URL('kiosk/checkout.js?v=1', menuUrl), { mode: 'same-origin' }),
+    ]);
+    if (!response.ok || !checkout.ok) throw new Error('Menu unavailable');
+    const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+    const setup = page.createElement('script');
+    setup.textContent = (await checkout.text()).replace(/<\/script/gi, '<\\/script');
+    page.querySelectorAll('input, textarea, select, form').forEach(field => {
+      field.setAttribute('autocomplete', 'off');
+    });
+    page.head.prepend(setup);
+    nextFrame.srcdoc = '<!doctype html>' + page.documentElement.outerHTML;
+  } catch {
+    const retry = document.createElement('button');
+    retry.textContent = 'Не удалось загрузить меню. Повторить';
+    retry.addEventListener('click', loadMenu);
+    menu.replaceChildren(retry);
+    return;
+  }
+  nextFrame.title = 'Меню и оформление заказа MissMaki';
+  nextFrame.addEventListener('load', event => {
     if (event.currentTarget !== frame) return;
-    const page = frame.contentDocument;
+    const page = frame?.contentDocument;
     if (!page) return;
     listenForActivity(page);
-    page.addEventListener('click', showInformation);
+    page.addEventListener('click', handleMenuLink);
     if (isOpen) resetTimer();
   });
-  menu.replaceChildren(frame);
+  menu.replaceChildren(nextFrame);
 }
 
 function listenForActivity(page) {
@@ -38,8 +77,14 @@ function listenForActivity(page) {
   }
 }
 
-function showInformation(event) {
+function handleMenuLink(event) {
   const link = event.target.closest('a[href]');
+  const href = link?.getAttribute('href');
+  if (href?.startsWith('#')) {
+    event.preventDefault();
+    link.ownerDocument.getElementById(href.slice(1))?.scrollIntoView();
+    return;
+  }
   if (!link || link.origin !== menuUrl.origin || !informationPaths.has(link.pathname)) return;
 
   event.preventDefault();
@@ -48,7 +93,7 @@ function showInformation(event) {
 }
 
 function canReturnToSplash() {
-  const page = frame.contentDocument;
+  const page = frame?.contentDocument;
   if (page?.documentElement.dataset.mmOrderWaiting === 'true') return false;
   const cart = page?.getElementById('cart');
   const send = page?.getElementById('send');
@@ -116,5 +161,6 @@ information.addEventListener('close', () => {
   if (isOpen) frame.focus({ preventScroll: true });
 });
 menu.inert = true;
+removeLegacyCheckoutData();
 listenForActivity(document);
 loadMenu();
