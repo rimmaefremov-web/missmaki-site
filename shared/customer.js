@@ -4,11 +4,36 @@ if(window.MM?.enabled){
  const analytics=(name,...args)=>{try{window.MMAnalytics?.[name]?.(...args);}catch(e){}};
  const screen=document.getElementById('status'),paymentInfo=document.getElementById('payment-info');
  for(const n of paymentInfo.querySelectorAll(':scope > h3,:scope > p'))n.hidden=true;
- screen.after(paymentInfo);
+ const pickup = document.createElement('section');
+ pickup.id = 'pickup-confirmation';
+ pickup.hidden = true;
+ pickup.setAttribute('aria-label', 'Данные для получения заказа');
+ pickup.setAttribute('aria-live', 'polite');
+ pickup.innerHTML = `
+  <dl class="pickup-numbers">
+   <div><dt>Номер заказа</dt><dd id="pickup-order-number"></dd></div>
+   <div><dt>Номер ячейки</dt><dd id="pickup-cell-number"></dd></div>
+  </dl>
+  <div class="pickup-reminder">
+   <span aria-hidden="true">📷</span>
+   <div><strong>Запомните или сфотографируйте номер заказа и номер ячейки.</strong>
+    <p>Эти данные пригодятся при получении заказа.</p></div>
+  </div>`;
+ const [orderNumber, cellNumber] = pickup.querySelectorAll('dd');
+ screen.after(pickup, paymentInfo);
  const screenStyle=document.createElement('style');screenStyle.textContent=`
  #status.order-screen{display:block;background:#DDF3D8;color:#000!important;font-size:clamp(21px,4.8vw,30px);font-weight:800;line-height:1.4;text-align:center;border-radius:20px;padding:22px 16px;margin:20px 0;scroll-margin-top:76px;scroll-margin-bottom:100px;white-space:pre-line;overflow-wrap:anywhere}
  #status.order-screen::after{content:none}
  #status.order-screen[data-waiting="true"]::after{content:"";display:block;width:38px;height:38px;margin:16px auto 0;border:5px solid #0003;border-top-color:#000;border-radius:50%;animation:mm-order-wait 1.2s linear infinite}
+ #pickup-confirmation{margin:0 0 20px;padding:clamp(12px,3vw,20px);border:1px solid #dfd2c4;border-radius:20px;background:#fffaf4;color:#2b211b}
+ #pickup-confirmation[hidden]{display:none}
+ .pickup-numbers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 12px;text-align:center}
+ .pickup-numbers>div{padding:8px 4px;background:#fff;border:1px solid #e8ddd2;border-radius:12px}
+ .pickup-numbers dt{font-size:clamp(13px,3.4vw,17px);font-weight:700;line-height:1.3}
+ .pickup-numbers dd{margin:2px 0 0;font-size:clamp(26px,7vw,44px);font-weight:800;line-height:1.12;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+ .pickup-reminder{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:12px;background:#f3e9df;font-size:clamp(14px,3.5vw,17px);line-height:1.35}
+ .pickup-reminder>span{font-size:20px;line-height:1.15}
+ .pickup-reminder p{margin:4px 0 0}
  @keyframes mm-order-wait{to{transform:rotate(360deg)}}
  @media(prefers-reduced-motion:reduce){#status.order-screen[data-waiting="true"]::after{animation-duration:3s}}
  `;document.head.append(screenStyle);
@@ -18,7 +43,27 @@ if(window.MM?.enabled){
   wakeRequest=true;try{const lock=await navigator.wakeLock.request('screen');if(!waiting||document.hidden){await lock.release();return;}wake=lock;lock.addEventListener('release',()=>{if(wake===lock)wake=null;});}catch(e){}finally{wakeRequest=false;}
  }
  function waitState(value){waiting=value;screen.dataset.waiting=String(value);document.documentElement.dataset.mmOrderWaiting=String(value);if(value)keepAwake();else if(wake){const lock=wake;wake=null;lock.release().catch(()=>{});}}
- function showOrder(data){const changed=lastOrder?.status!==data.status;lastOrder=data;screen.classList.add('order-screen');const message=MM.orderMessage(data);if(screen.textContent!==message)screen.textContent=message;waitState(data.status==='new');paymentInfo.hidden=data.status==='rejected';document.getElementById('decision').style.display='none';if(changed)screen.scrollIntoView({behavior:'smooth',block:'start'});}
+ function showOrder(data){
+  const changed=lastOrder?.status!==data.status;
+  lastOrder=data;
+  const number=Number(data.number);
+  const cell=data.pickup_number;
+  const showPickup=data.status==='accepted'&&data.fulfillment==='pickup'&&
+   Number.isSafeInteger(number)&&number>0&&Number.isInteger(cell)&&cell>=1&&cell<=6;
+  const revealed=showPickup&&pickup.hidden;
+  pickup.hidden=!showPickup;
+  if(showPickup){
+   if(orderNumber.textContent!==`№${number}`)orderNumber.textContent=`№${number}`;
+   if(cellNumber.textContent!==`№${cell}`)cellNumber.textContent=`№${cell}`;
+  }
+  screen.classList.add('order-screen');
+  const message=MM.orderMessage(data,undefined,{showPickupCell:!showPickup});
+  if(screen.textContent!==message)screen.textContent=message;
+  waitState(data.status==='new');
+  paymentInfo.hidden=data.status==='rejected';
+  document.getElementById('decision').style.display='none';
+  if(changed||revealed)screen.scrollIntoView({behavior:'smooth',block:'start'});
+ }
  window.MMOrderScreen={sent(){showOrder(lastOrder||{status:'new'});screen.scrollIntoView({behavior:'smooth',block:'start'});}};
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)keepAwake();});
  window.addEventListener('pageshow',()=>{keepAwake();document.dispatchEvent(new Event('visibilitychange'));});
@@ -26,7 +71,7 @@ if(window.MM?.enabled){
 
  let stopWatching,lastSubmissionError;
  submit=async order=>{
-  lastSubmissionError=null;lastOrder=null;waitState(true);
+  lastSubmissionError=null;lastOrder=null;pickup.hidden=true;waitState(true);
   await MM.customer();
   const {requestId,origin,...payload}=order;
   analytics('attempt',requestId,payload.fulfillment,payload.timing);

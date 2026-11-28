@@ -114,7 +114,7 @@
    if(['42703','PGRST204'].includes(result.error?.code))result=await this.client().from('orders').select('number,status,minutes').eq('request_id',request).maybeSingle();
    if(result.error)throw result.error;return result.data;
   },
-  orderMessage(data,now=new Date()){
+  orderMessage(data,now=new Date(),{showPickupCell=true}={}){
    const pickup=data.fulfillment==='pickup',preorder=data.timing==='preorder';
    if(data.status==='rejected')return 'ВАШ ЗАКАЗ НЕ ПРИНЯТ.\nК сожалению, сейчас мы не можем выполнить Ваш заказ. Приносим свои извинения.';
    if(data.status==='completed')return `ЗАКАЗ №${data.number} ВЫПОЛНЕН.`;
@@ -125,7 +125,10 @@
     const when=time+(date?' '+date.split('-').reverse().join('.'):'');
     message='ВАШ ПРЕДЗАКАЗ ПРИНЯТ!\n'+(pickup?`Будет готов к ${when}.\nБудем Вас ждать!`:`Доставим к ${when}.`);
    }else message='ВАШ ЗАКАЗ ПРИНЯТ!\n'+(pickup?`Будет готов через ${data.minutes} минут.\nБудем Вас ждать!`:`Доставим в течение ${data.minutes} минут.`);
-   if(pickup&&Number.isInteger(data.pickup_number)&&data.pickup_number>=1&&data.pickup_number<=6)message+=`\n\nЯчейка самовывоза: №${data.pickup_number}\nОплата при получении на кассе.`;
+   if(pickup&&Number.isInteger(data.pickup_number)&&data.pickup_number>=1&&data.pickup_number<=6){
+    if(showPickupCell)message+=`\n\nЯчейка самовывоза: №${data.pickup_number}`;
+    message+='\nОплата при получении на кассе.';
+   }
    return message;
   },
   async rpc(name,args={}){

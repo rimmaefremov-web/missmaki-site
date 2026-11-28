@@ -132,17 +132,29 @@ test('test orders leave operational queue without deletion and test reviews rema
  await page.getByRole('button',{name:'История заказов',exact:true}).click();await page.locator('.history-summary').click();await expect(page.getByText('ТЕСТ — НЕ ГОТОВИТЬ',{exact:true})).toBeVisible();await page.getByRole('button',{name:'Отзывы',exact:true}).click();await page.getByRole('button',{name:'Пометить как тест',exact:true}).click();await expect(page.getByRole('button',{name:'Снять отметку теста',exact:true})).toBeVisible();
 });
 
+async function expectPickupConfirmation(surface,cell){
+ const card=surface.locator('#pickup-confirmation');
+ await expect(card).toBeInViewport({ratio:0.98});
+ await expect(card.locator('#pickup-order-number')).toHaveText('№42');
+ await expect(card.locator('#pickup-cell-number')).toHaveText('№'+cell);
+ await expect(card.locator('strong')).toHaveText('Запомните или сфотографируйте номер заказа и номер ячейки.');
+ await expect(card.locator('p')).toHaveText('Эти данные пригодятся при получении заказа.');
+}
 test('pickup confirmation shows its permanent cell; scheduled pickup uses the chosen date and time after reload',async({page})=>{
  await mock(page);await page.addInitScript(()=>localStorage.setItem('missmaki-active-order','r1'));await page.goto('/');
  await page.evaluate(()=>{Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',minutes:15,pickupNumber:1});document.dispatchEvent(new Event('visibilitychange'));});
- const ordinary='ВАШ ЗАКАЗ ПРИНЯТ!\nБудет готов через 15 минут.\nБудем Вас ждать!\n\nЯчейка самовывоза: №1\nОплата при получении на кассе.';
+ const ordinary='ВАШ ЗАКАЗ ПРИНЯТ!\nБудет готов через 15 минут.\nБудем Вас ждать!\nОплата при получении на кассе.';
  await expect(page.locator('#status')).toHaveText(ordinary);
+ await expectPickupConfirmation(page,1);
+ await page.evaluate(()=>{window.__fake.pickupNumber=null;document.dispatchEvent(new Event('visibilitychange'));});
+ await expect(page.locator('#pickup-confirmation')).toBeHidden();
  await page.evaluate(()=>{Object.assign(window.__fake,{timing:'preorder',pickupNumber:2,requestedDate:'2026-11-05',requestedTime:'18:30:00'});document.dispatchEvent(new Event('visibilitychange'));});
- const preorder='ВАШ ПРЕДЗАКАЗ ПРИНЯТ!\nБудет готов к 18:30 05.11.2026.\nБудем Вас ждать!\n\nЯчейка самовывоза: №2\nОплата при получении на кассе.';
- await expect(page.locator('#status')).toHaveText(preorder);await expect(page.locator('#status')).not.toContainText('Время ожидания');
+ const preorder='ВАШ ПРЕДЗАКАЗ ПРИНЯТ!\nБудет готов к 18:30 05.11.2026.\nБудем Вас ждать!\nОплата при получении на кассе.';
+ await expect(page.locator('#status')).toHaveText(preorder);await expect(page.locator('#status')).not.toContainText('Время ожидания');await expectPickupConfirmation(page,2);
  // Restore the server fixture after reload without relying on init-script ordering.
- await page.reload();await page.evaluate(()=>{Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',minutes:15,timing:'preorder',pickupNumber:2,requestedDate:'2026-11-05',requestedTime:'18:30:00'});document.dispatchEvent(new Event('visibilitychange'));});await expect(page.locator('#status')).toHaveText(preorder);
+ await page.reload();await page.evaluate(()=>{Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',minutes:15,timing:'preorder',pickupNumber:2,requestedDate:'2026-11-05',requestedTime:'18:30:00'});document.dispatchEvent(new Event('visibilitychange'));});await expect(page.locator('#status')).toHaveText(preorder);await expectPickupConfirmation(page,2);
  await page.evaluate(()=>{window.__fake.status='rejected';document.dispatchEvent(new Event('visibilitychange'));});await expect(page.locator('#status')).toHaveText('ВАШ ЗАКАЗ НЕ ПРИНЯТ.\nК сожалению, сейчас мы не можем выполнить Ваш заказ. Приносим свои извинения.');
+ await expect(page.locator('#pickup-confirmation')).toBeHidden();
 });
 test('kitchen shows the same cell and requested pickup time without release buttons',async({page})=>{
  await mock(page,{staff:true});await page.goto('/kitchen/');await page.evaluate(()=>Object.assign(window.__fake,{fulfillment:'pickup',status:'accepted',pickupNumber:6,timing:'preorder',requestedDate:'2026-11-05',requestedTime:'18:30:00'}));await page.locator('#refresh').click();await page.getByRole('button',{name:'Принятые',exact:true}).click();await expect(page.getByText('📦 Ячейка самовывоза: №6',{exact:true})).toBeVisible();await expect(page.getByText('Дата и время: 05.11.2026 к 18:30',{exact:true})).toBeVisible();expect(await page.getByRole('button',{name:/освободить ячейку/i}).count()).toBe(0);
@@ -181,6 +193,7 @@ test('scheduled delivery updates automatically inside customer kiosk menu',async
  await mock(page);const frame=await placeKioskOrder(page);
  await frame.evaluate(()=>Object.assign(__fake,{status:'accepted',timing:'preorder',fulfillment:'delivery',requestedDate:'2026-11-26',requestedTime:'18:30:00'}));
  await expect(frame.locator('#status')).toHaveText('ВАШ ПРЕДЗАКАЗ ПРИНЯТ!\nДоставим к 18:30 26.11.2026.');
+ await expect(frame.locator('#pickup-confirmation')).toBeHidden();
 });
 
 async function historyFixture(page){
@@ -231,7 +244,11 @@ test('kiosk stays on waiting order beyond idle timeout without wake lock support
  await page.clock.fastForward(125000);
  await expect(page.locator('#splash')).toHaveClass(/open/);
  await expect(frame.locator('#status')).toHaveAttribute('data-waiting','true');
+ await expect(frame.locator('#pickup-confirmation')).toBeHidden();
  await frame.evaluate(()=>{__fake.status='accepted';__fake.fulfillment='pickup';__fake.minutes=30;__fake.pickupNumber=6;document.dispatchEvent(new Event('visibilitychange'));});
  await expect(frame.locator('#status')).toContainText('Будет готов через 30 минут.');
- await expect(frame.locator('#status')).toContainText('Ячейка самовывоза: №6');
+ await expectPickupConfirmation(frame,6);
+ await frame.evaluate(()=>{Object.assign(__fake,{timing:'preorder',requestedDate:'2026-11-29',requestedTime:'18:30:00'});document.dispatchEvent(new Event('visibilitychange'));});
+ await expect(frame.locator('#status')).toContainText('Будет готов к 18:30 29.11.2026.');
+ await expectPickupConfirmation(frame,6);
 });
